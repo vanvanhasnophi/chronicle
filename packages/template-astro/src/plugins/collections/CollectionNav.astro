@@ -1,6 +1,7 @@
 ---
 import './styles/collection-nav.css';
 import { dataSource } from '../../data';
+import { getTranslation, getLocale } from '../../utils/i18n';
 // Collection navigation panel — dual-mode: desktop sidebar + mobile inline.
 // variant="sidebar" (default): fixed sidebar with collapse. variant="inline": plain panel for CornerButton.
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
   defaultCollapsed?: boolean;
 }
 const { postId = "", mountToBody = true, variant = "sidebar", defaultCollapsed: defaultCollapsedProp } = Astro.props as Props;
+const t = (key: string) => getTranslation(getLocale(Astro.locals), key);
 
 // 配置自读（交集式）：合集导航开关/折叠初态来自 collections.yml 的 post.collectionNav
 // （normalizePostConfig 归一化键名为 postCollectionNav——含 enabled + alwaysCollapsed）

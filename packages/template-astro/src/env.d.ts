@@ -24,6 +24,16 @@ interface Window {
 declare const __VERSION__: string;
 declare const __YEAR__: number;
 
+// Resolved branding icons (data/branding/ overrides + avatar fallback), injected
+// by astro.config's vite define. Shape mirrors resolveBrandIcons() there.
+declare const __BRAND_ICONS__: {
+  primary: { href: string; type: string; sizes?: string };
+  pngLink: { href: string; type: string; sizes?: string };
+  appleTouch: string;
+  manifestIcons: Array<{ src: string; sizes: string; type: string }>;
+  themeColor: string;
+};
+
 declare module 'markdown-it-footnote' {
   import type { PluginSimple } from 'markdown-it'
   const fn: PluginSimple

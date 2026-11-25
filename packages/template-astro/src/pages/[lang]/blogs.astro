@@ -266,7 +266,7 @@ const blogI18n = {
       if (!archive || archive.dataset.blogInit === '1') return;
       archive.dataset.blogInit = '1';
 
-      const sortButtons = Array.from(document.querySelectorAll('[data-sort]'));
+      const sortButtons = Array.from(document.querySelectorAll<HTMLElement>('[data-sort]'));
       const clearBtn = document.getElementById('blog-clear');
       const countEl = document.getElementById('blog-count');
       const titleEl = document.getElementById('all-posts-title');
@@ -282,7 +282,7 @@ const blogI18n = {
       const timelineBtn = document.getElementById('blog-timeline');
       const collapsedMonths = new Set();
 
-      let featuredAnim = null;
+      let featuredAnim: Animation | null = null;
 
       const resetFeaturedStyles = () => {
         if (!featuredSection) return;
@@ -295,7 +295,7 @@ const blogI18n = {
 
       // Collapse/expand the whole featured block (height + fade + slight shrink),
       // so the All Posts section below travels with it instead of jumping.
-      const animateFeatured = (show) => {
+      const animateFeatured = (show: boolean) => {
         if (!featuredSection) return;
         if (featuredAnim) {
           featuredAnim.cancel();
@@ -353,20 +353,20 @@ const blogI18n = {
         }
       };
 
-      const items = () => Array.from(archive.querySelectorAll('.post-card-item'));
+      const items = () => Array.from(archive.querySelectorAll<HTMLElement>('.post-card-item'));
 
-      const monthRows = () => Array.from(archive.querySelectorAll('.month-row'));
-      const rowKey = (row) => row.getAttribute('data-month-key') || '';
-      const monthPosts = (row) => row.querySelector('.month-posts');
-      const monthToggle = (row) => row.querySelector('.month-toggle');
+      const monthRows = () => Array.from(archive.querySelectorAll<HTMLElement>('.month-row'));
+      const rowKey = (row: HTMLElement) => row.getAttribute('data-month-key') || '';
+      const monthPosts = (row: HTMLElement) => row.querySelector<HTMLElement>('.month-posts');
+      const monthToggle = (row: HTMLElement) => row.querySelector<HTMLElement>('.month-toggle');
 
-      const scrollMonthToTop = (row) => {
+      const scrollMonthToTop = (row: HTMLElement) => {
         const btn = monthToggle(row);
         if (!btn) return;
         btn.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
       };
 
-      const collapseMonth = (row, animate) => {
+      const collapseMonth = (row: HTMLElement, animate: boolean) => {
         const posts = monthPosts(row);
         const btn = monthToggle(row);
         if (!posts || !btn || posts.hidden) return;
@@ -398,7 +398,7 @@ const blogI18n = {
         }, 220);
       };
 
-      const expandMonth = (row, animate) => {
+      const expandMonth = (row: HTMLElement, animate: boolean) => {
         const posts = monthPosts(row);
         const btn = monthToggle(row);
         if (!posts || !btn) return;
@@ -441,10 +441,10 @@ const blogI18n = {
       };
 
       const updateYearButtons = () => {
-        archive.querySelectorAll('.year-block').forEach((block) => {
-          const btn = block.querySelector('.year-toggle');
+        archive.querySelectorAll<HTMLElement>('.year-block').forEach((block) => {
+          const btn = block.querySelector<HTMLElement>('.year-toggle');
           if (!btn) return;
-          const rows = Array.from(block.querySelectorAll('.month-row'));
+          const rows = Array.from(block.querySelectorAll<HTMLElement>('.month-row'));
           const allCollapsed = rows.length > 0 && rows.every((row) => collapsedMonths.has(rowKey(row)));
           btn.setAttribute('aria-expanded', String(!allCollapsed));
           btn.setAttribute('aria-disabled', String(allCollapsed));
@@ -452,7 +452,7 @@ const blogI18n = {
         });
       };
 
-      const setAllMonthsCollapsed = (collapsed, animate) => {
+      const setAllMonthsCollapsed = (collapsed: boolean, animate: boolean) => {
         const rows = monthRows();
         collapsedMonths.clear();
         if (collapsed) {
@@ -512,24 +512,24 @@ const blogI18n = {
           items().forEach((item) => {
             if (!keep.has(item)) item.remove();
           });
-          archive.querySelectorAll('.month-row').forEach((row) => {
+          archive.querySelectorAll<HTMLElement>('.month-row').forEach((row) => {
             if (!row.querySelector('.post-card-item')) row.remove();
           });
-          archive.querySelectorAll('.year-block').forEach((year) => {
+          archive.querySelectorAll<HTMLElement>('.year-block').forEach((year) => {
             if (!year.querySelector('.month-row')) year.remove();
           });
         }
 
         if (state.sort === 'oldest') {
-          const years = Array.from(archive.querySelectorAll('.year-block')).reverse();
+          const years = Array.from(archive.querySelectorAll<HTMLElement>('.year-block')).reverse();
           years.forEach((year) => {
             archive.appendChild(year);
-            const months = Array.from(year.querySelectorAll('.month-row')).reverse();
+            const months = Array.from(year.querySelectorAll<HTMLElement>('.month-row')).reverse();
             months.forEach((month) => {
               year.appendChild(month);
-              const posts = month.querySelector('.month-posts');
+              const posts = month.querySelector<HTMLElement>('.month-posts');
               if (!posts) return;
-              const cards = Array.from(posts.querySelectorAll('.post-card-item')).reverse();
+              const cards = Array.from(posts.querySelectorAll<HTMLElement>('.post-card-item')).reverse();
               cards.forEach((card) => posts.appendChild(card));
             });
           });
@@ -640,7 +640,7 @@ const blogI18n = {
 
         const btn = target?.closest('.month-toggle');
         if (!btn || !archive.contains(btn)) return;
-        const row = btn.closest('.month-row');
+        const row = btn.closest('.month-row') as HTMLElement | null;
         if (!row) return;
         const allCollapsed = monthRows().every((monthRow) => collapsedMonths.has(rowKey(monthRow)));
         if (allCollapsed) {

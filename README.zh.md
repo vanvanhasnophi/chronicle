@@ -222,6 +222,7 @@ reset 命令在改过内容之后仍然有用（都支持 `--dry-run`，如 `npm
 | 命令 | 作用 |
 |:--|:--|
 | `npm test` | 文章索引器单测 |
+| `npm run check:astro` | Astro 类型检查（`.astro` 文件 + 内容集合），CI 也会执行 |
 | `npm run test:cms` | 浏览器模式 CMS 端到端（需要 Chrome） |
 | `npm run check:base -- --dir dist --base /repo/` | 所有绝对链接都带 base 前缀 |
 | `npm run check:encoding` | 检测源码与内容里的乱码/编码损坏 |

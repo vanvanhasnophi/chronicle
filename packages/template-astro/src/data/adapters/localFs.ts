@@ -603,23 +603,27 @@ function deriveLegacyHomeColumns(raw: Record<string, any>): Array<{
   ].filter((column) => column.cards.length > 0);
 }
 
-function normalizeHomeColumns(value: unknown): Array<{ width?: number; maxWidth?: number; cards: string[] }> | undefined {
+interface HomeColumnCard {
+  type: string;
+  [key: string]: unknown;
+}
+
+function normalizeHomeColumns(value: unknown): Array<{ width?: number; maxWidth?: number; cards: HomeColumnCard[] }> | undefined {
   if (!Array.isArray(value)) return undefined;
   const columns = value
     .slice(0, 3)
     .map((entry) => {
-      const source = (entry ?? {}) as { cards?: unknown; width?: unknown };
+      const source = (entry ?? {}) as { cards?: unknown; width?: unknown; maxWidth?: unknown };
       // Cards are ordered child objects (`{ type: intro }`) so the same card
       // may repeat.
       const rawCards = source.cards;
-      const cards = (Array.isArray(rawCards) ? rawCards : [])
-        .map((entry) =>
-          entry && typeof entry === 'object' && typeof (entry as any).type === 'string'
-            ? { ...(entry as Record<string, unknown>), type: String((entry as any).type) }
-            : null,
-        )
-        .filter(Boolean)
-        .filter((entry) => (HOME_CARD_IDS as readonly string[]).includes(entry!.type));
+      const cards: HomeColumnCard[] = (Array.isArray(rawCards) ? rawCards : [])
+        .flatMap((card) => {
+          if (!card || typeof card !== 'object') return [];
+          const type = (card as Record<string, unknown>).type;
+          if (typeof type !== 'string' || !(HOME_CARD_IDS as readonly string[]).includes(type)) return [];
+          return [{ ...(card as Record<string, unknown>), type }];
+        });
       const width = Number(source.width);
       const maxWidth = Number(source.maxWidth);
       return {

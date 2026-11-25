@@ -188,13 +188,14 @@ const collections = collectionSource.map((collection: any, index: number) => {
       const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       function createScope() {
-        const listeners = [];
+        type ScopeListener = { t: EventTarget; ev: string; fn: EventListener; opts?: boolean | AddEventListenerOptions };
+        const listeners: ScopeListener[] = [];
         return {
-          onEl(el, ev, fn, opts) {
+          onEl(el: Element, ev: string, fn: EventListener, opts?: boolean | AddEventListenerOptions) {
             el.addEventListener(ev, fn, opts);
             listeners.push({ t: el, ev, fn, opts });
           },
-          onWindow(ev, fn, opts) {
+          onWindow(ev: string, fn: EventListener, opts?: boolean | AddEventListenerOptions) {
             window.addEventListener(ev, fn, opts);
             listeners.push({ t: window, ev, fn, opts });
           },
@@ -205,7 +206,7 @@ const collections = collectionSource.map((collection: any, index: number) => {
         };
       }
 
-      let scope = null;
+      let scope: ReturnType<typeof createScope> | null = null;
       let listScrollY = 0;
 
       function initCollectionPage() {
@@ -215,11 +216,11 @@ const collections = collectionSource.map((collection: any, index: number) => {
         const listLayer = document.getElementById("collection-list-layer");
         const detailLayer = document.getElementById("collection-detail-layer");
         const grid = document.getElementById("collections-grid");
-        const listTitle = listLayer?.querySelector(".section-title");
+        const listTitle = listLayer?.querySelector<HTMLElement>(".section-title");
         const tempBg = document.getElementById("collection-temp-bg");
-        const tempBgImage = tempBg?.querySelector(".collection-temp-bg-image");
+        const tempBgImage = tempBg?.querySelector<HTMLElement>(".collection-temp-bg-image");
         const panels = Array.from(
-          document.querySelectorAll(".collection-detail-panel"),
+          document.querySelectorAll<HTMLElement>(".collection-detail-panel"),
         );
         if (!listLayer || !detailLayer || !grid || !tempBg) return;
 
@@ -235,7 +236,7 @@ const collections = collectionSource.map((collection: any, index: number) => {
           }
         };
 
-        const findPanel = (hash) =>
+        const findPanel = (hash: string) =>
           panels.find(
             (panel) =>
               panel.id === hash ||
@@ -243,7 +244,7 @@ const collections = collectionSource.map((collection: any, index: number) => {
               panel.dataset.slug === hash,
           );
 
-        const setBackground = (panel) => {
+        const setBackground = (panel: HTMLElement | undefined) => {
           const cover = panel?.dataset.cover || "";
           if (cover && tempBgImage) {
             tempBgImage.style.backgroundImage = `url("${cover.replace(/"/g, "%22")}")`;
@@ -253,7 +254,7 @@ const collections = collectionSource.map((collection: any, index: number) => {
           }
         };
 
-        const showList = (options = {}) => {
+        const showList = (options: { focus?: boolean; restore?: boolean } = {}) => {
           listLayer.hidden = false;
           detailLayer.hidden = true;
           panels.forEach((panel) => { panel.hidden = true; });
@@ -264,7 +265,7 @@ const collections = collectionSource.map((collection: any, index: number) => {
           }
         };
 
-        const openPanel = (panel, options = {}) => {
+        const openPanel = (panel: HTMLElement, options: { push?: boolean; focus?: boolean } = {}) => {
           if (detailLayer.hidden) listScrollY = window.scrollY;
           listLayer.hidden = true;
           detailLayer.hidden = false;
@@ -279,12 +280,12 @@ const collections = collectionSource.map((collection: any, index: number) => {
           }
 
           if (options.focus) {
-            panel.querySelector(".collection-title")?.focus();
+            panel.querySelector<HTMLElement>(".collection-title")?.focus();
             window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
           }
         };
 
-        const handleHash = (restore = false) => {
+        const handleHash = (restore: boolean = false) => {
           const hash = decodeHash();
           const panel = hash ? findPanel(hash) : undefined;
           if (panel) openPanel(panel, { push: false, focus: false });
@@ -300,7 +301,7 @@ const collections = collectionSource.map((collection: any, index: number) => {
           history.pushState({}, "", `${location.pathname}${location.search}`);
         };
 
-        scope.onEl(grid, "click", (event) => {
+        scope.onEl(grid, "click", (event: Event) => {
           const target = event.target instanceof Element ? event.target : null;
           const link = target?.closest(".collection-card-link");
           if (!link) return;
@@ -311,7 +312,7 @@ const collections = collectionSource.map((collection: any, index: number) => {
           openPanel(panel, { push: true, focus: true });
         });
 
-        scope.onEl(detailLayer, "click", (event) => {
+        scope.onEl(detailLayer, "click", (event: Event) => {
           const target = event.target instanceof Element ? event.target : null;
 
           const back = target?.closest(".back-btn");
@@ -323,7 +324,7 @@ const collections = collectionSource.map((collection: any, index: number) => {
 
           const group = target?.closest(".group-header");
           if (group) {
-            const children = group.parentElement?.querySelector(".children-container");
+            const children = group.parentElement?.querySelector<HTMLElement>(".children-container");
             if (!children) return;
             const expanded = group.getAttribute("aria-expanded") === "true";
             group.setAttribute("aria-expanded", String(!expanded));

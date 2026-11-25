@@ -4,6 +4,7 @@ import { buildLocalizedPath } from "../utils/routeLocale";
 import { withBase } from "../utils/basePath";
 import { loadSiteSettings } from "../utils/siteSettings";
 import { loadSiteProfile } from "../utils/siteProfile";
+import type { RecentUpdates } from "../utils/recentUpdates";
 import { dataSource } from "../data";
 import { getTranslation, getLocale } from "../utils/i18n";
 import { getPluginSlots } from '../plugins';
@@ -253,12 +254,6 @@ const recommendedPosts = uniqueById([...featuredPosts, ...recentPosts])
 // the "last updated" label reads "Unknown" and the content list is static.
 // 插件动态（合集/友链等）由各插件 changeInterpreter 自解释后并列进同一列表——
 // core 只持有帖子/应用/删除动态，零插件数据语义。
-type RecentUpdatesData = {
-  latestCommitDate: string;
-  appUpdated: boolean;
-  changedPosts: { id: string; title: string; isNew: boolean }[];
-  deletedCount: number;
-};
 type ActivityItem = {
   // tone 不限 core 预设（app/post/delete）——插件 changeInterpreter 可自定义
   // （如 collections 的 'collection'）；图标/样式随 tone 查表（缺省回退）
@@ -281,7 +276,7 @@ const aggregateDays = sanitizeDays(settings?.recentUpdates?.aggregateDays, 7);
 const appChangelogUrl =
   "https://github.com/vanvanhasnophi/chronicle/commits/main/";
 
-let recentUpdates: RecentUpdatesData | null = null;
+let recentUpdates: RecentUpdates | null = null;
 try {
   const { getRecentUpdates } = await import("../utils/recentUpdates");
   recentUpdates = await getRecentUpdates({
@@ -536,12 +531,12 @@ const cardProps: Record<string, Record<string, unknown>> = {
   // Pure CSS cannot move cards between columns.
   (() => {
     function init() {
-      const flows = document.querySelector('.card-flows');
+      const flows = document.querySelector('.card-flows') as HTMLElement | null;
       if (!flows || flows.dataset.columnLayout === '1') return;
-      const columns = [...flows.querySelectorAll('.flow-column')];
+      const columns = [...flows.querySelectorAll<HTMLElement>('.flow-column')];
       if (columns.length < 2) return;
 
-      const slots = [...flows.querySelectorAll('.home-card-slot')];
+      const slots = [...flows.querySelectorAll<HTMLElement>('.home-card-slot')];
       const configured = columns.length;
       // Capture the SSR widths once: this runs from both DOMContentLoaded and
       // astro:page-load, and a second run would otherwise read back the already

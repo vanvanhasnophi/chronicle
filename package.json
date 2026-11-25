@@ -70,6 +70,7 @@
     "check:export": "node scripts/check-export.mjs",
     "check:commands": "node scripts/check-commands.mjs",
     "preview": "node scripts/serve-dist.mjs",
-    "stop": "bash scripts/stop.sh"
+    "stop": "bash scripts/stop.sh",
+    "check:astro": "npm run check --workspace=@chronicle/template-astro"
   }
 }

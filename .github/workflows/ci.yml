@@ -45,6 +45,9 @@ jobs:
       - name: Typecheck (manager / gen / shared)
         run: npm run typecheck
 
+      - name: Check Astro types (astro check)
+        run: npm run check:astro
+
       - name: Check text encoding
         run: npm run check:encoding
 

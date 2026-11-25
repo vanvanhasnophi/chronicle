@@ -132,6 +132,6 @@ export const contentCollectionsAdapter = {
   getPage(): null {
     return null;
   },
-} as DataSource;
+} as unknown as DataSource;
 
 export default contentCollectionsAdapter;

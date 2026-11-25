@@ -649,7 +649,7 @@ async function hydrateWaline(
       content: renderMarkdownPreview(draft.content),
       date: new Date().toISOString(),
       parent: draft.parent || null,
-      rootId: draft.rootId || null,
+      rootId: draft.rootId || undefined,
     };
     allComments = [optimistic, ...allComments];
     total += 1;

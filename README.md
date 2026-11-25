@@ -221,6 +221,7 @@ Every script in the root `package.json`, in one place — `npm run` lists the na
 | Command | What it does |
 |:--|:--|
 | `npm test` | Post indexer unit tests |
+| `npm run check:astro` | Astro type-check (`.astro` files + content collections); also runs in CI |
 | `npm run test:cms` | Browser-mode CMS end-to-end (needs Chrome) |
 | `npm run check:base -- --dir dist --base /repo/` | Every absolute link carries the base path |
 | `npm run check:encoding` | Detect mojibake / broken encoding in sources and content |

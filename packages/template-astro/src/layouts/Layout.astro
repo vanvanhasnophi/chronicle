@@ -586,7 +586,7 @@ const ANALYTICS_GA_ID = String(process.env.GA_MEASUREMENT_ID || analyticsCfg.gaM
         // 限流：并发上限 + 冷却
         let _inflight = 0;
         let _lastFetch = 0;
-        let _debounceTimer = null;
+        let _debounceTimer: ReturnType<typeof setTimeout> | null = null;
         let _pendingUrl = '';
         const CONCURRENCY_LIMIT = 2;
         const MIN_INTERVAL_MS = 300;
