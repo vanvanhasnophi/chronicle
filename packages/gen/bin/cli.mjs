@@ -34,6 +34,13 @@ switch (command) {
     });
     break;
   }
+  case 'migrate':
+  case 'm': {
+    import('../src/commands/migrate.mjs').then(({ migrateCommand }) => {
+      migrateCommand(process.argv.slice(3));
+    });
+    break
+  }
   case 'help':
   case '--help':
   case '-h':
@@ -44,6 +51,7 @@ Usage: npx chronicle-gen <command> [options]
 
 Commands:
   build, b     Run Astro SSG build
+  migrate, m   Upgrade a data directory to the current content model
   cdn, c       CDN cache management (purge, warm)
 
 Build Options:
@@ -51,6 +59,11 @@ Build Options:
   --codeDir, -c   <path>   Path to Astro project directory
   --targetDir, -t <path>   Where to place final build output
   --granularity, -g <full|posts|index>  Build granularity (default: full)
+
+Migrate Options:
+  --dataDir, -d   <path>   Path to data directory (default: data)
+  --dry-run, -n            Print the plan without writing anything
+  --json                   Print the report as JSON
 `)
     break
   }

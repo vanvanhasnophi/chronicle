@@ -183,6 +183,7 @@ Every script in the root `package.json`, in one place — `npm run` lists the na
 | Command | What it does |
 |:--|:--|
 | `npm run init` | Install every workspace package (one-time setup) |
+| `npm run dev` | Alias of `dev:astro` — the blog template with live reload |
 | `npm run dev:cms` | CMS in the browser → http://localhost:5173 |
 | `npm run dev:astro` | Blog template with live reload → http://localhost:4321 |
 | `npm run stop` | Free the dev ports (5173 / 4321) |
@@ -192,6 +193,7 @@ Every script in the root `package.json`, in one place — `npm run` lists the na
 
 | Command | What it does |
 |:--|:--|
+| `npm run build` | Alias of `build:astro` — SSG build → `dist/` |
 | `npm run build:astro` | SSG build → `dist/` — the deployable site |
 | `npm run preview` | Serve the built `dist/` locally |
 | `npm run demo:fetch` | Pull the demo content into the git-ignored `demo/` |
@@ -210,6 +212,7 @@ Every script in the root `package.json`, in one place — `npm run` lists the na
 | `npm run reset:data` | Delete content: posts, comments, media, about page |
 | `npm run init:clean` | `reset:site` + `reset:cms` + `reset:data` |
 | `npm run migrate -- <data.tar.gz>` | Import a pre-Aurora `data/` archive (backs up to `data.bak/`) |
+| `npm run migrate:v4 -- --dry-run` | Upgrade `data/` to content model 1: pin the marker and move `__about__` → `pages/about` (dry run; a real run backs the data up first) |
 | `npm run assets` | Regenerate brand assets (social card, favicon set, manifest) |
 | `npm run release` | Version bump + changelog + tag (maintainers only) |
 

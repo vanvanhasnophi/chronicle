@@ -50,6 +50,7 @@
     "reset:cms": "node scripts/reset-cms.mjs",
     "reset:data": "node scripts/reset-data.mjs",
     "migrate": "node scripts/migrate-legacy.mjs",
+    "migrate:v4": "node packages/gen/bin/cli.mjs migrate --dataDir data",
     "update": "bash scripts/update-app.sh",
     "dev:cms": "npm run dev --workspace=@chronicle/manager",
     "dev:astro": "npm run dev --workspace=@chronicle/template-astro",

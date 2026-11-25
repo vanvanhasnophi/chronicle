@@ -184,6 +184,7 @@ reset 命令在改过内容之后仍然有用（都支持 `--dry-run`，如 `npm
 | 命令 | 作用 |
 |:--|:--|
 | `npm run init` | 安装所有 workspace 依赖（一次性） |
+| `npm run dev` | 等同 `dev:astro` —— 博客模板 + 热更新 |
 | `npm run dev:cms` | 浏览器里的 CMS → http://localhost:5173 |
 | `npm run dev:astro` | 博客模板 + 热更新 → http://localhost:4321 |
 | `npm run stop` | 释放开发端口（5173 / 4321） |
@@ -193,6 +194,7 @@ reset 命令在改过内容之后仍然有用（都支持 `--dry-run`，如 `npm
 
 | 命令 | 作用 |
 |:--|:--|
+| `npm run build` | 等同 `build:astro` —— SSG 构建 → `dist/` |
 | `npm run build:astro` | SSG 构建 → `dist/`（可部署产物） |
 | `npm run preview` | 本地伺服构建好的 `dist/` |
 | `npm run demo:fetch` | 把 demo 内容拉到 git-ignored 的 `demo/` |
@@ -211,6 +213,7 @@ reset 命令在改过内容之后仍然有用（都支持 `--dry-run`，如 `npm
 | `npm run reset:data` | 删除内容：文章、评论、媒体、about 页 |
 | `npm run init:clean` | `reset:site` + `reset:cms` + `reset:data` |
 | `npm run migrate -- <data.tar.gz>` | 导入 pre-Aurora 的 `data/` 归档（先备份到 `data.bak/`） |
+| `npm run migrate:v4 -- --dry-run` | 把 `data/` 升级到内容模型 1：写入标记、`__about__` → `pages/about`（支持 dry-run；实际执行前先备份） |
 | `npm run assets` | 重新生成品牌资源（社交卡片、favicon 集、manifest） |
 | `npm run release` | 版本号 + CHANGELOG + tag（维护者用） |
 

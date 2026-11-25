@@ -56,10 +56,14 @@ The value the build supports is a single constant:
 |---|---|---|
 | `1` | The 4.0 layout: `data/` as content root, posts as `posts/<id>/index.md` directories (or flat `posts/<id>.md` files), collections and tags as the two taxonomy axes, `pages` for about/legal | 4.0.0-beta.1 (marker + build check); the rest of the layout lands across the 4.0 betas |
 
-A site created before 4.0 has no marker. The build assumes model `1` and prints
-a notice; adding `contentModel: 1` to `site.yml` is the only action needed, and
-the CMS keeps the key when it rewrites the file (its YAML writer only touches
-the paths it saves).
+A site created before 4.0 has no marker and keeps its about page in
+`data/__about__/index.md`. The build assumes model `1`, prints a notice, and
+still renders that legacy about page; `npm run migrate:v4` pins the marker,
+moves the page to `data/pages/about/` and copies its attachments. The
+migration is safe to re-run: `--dry-run` prints the plan, a real run copies
+`data/` to `.chronicle/backups/migrate-v4-<timestamp>/` first, and a second run
+is a no-op. The CMS keeps the marker when it rewrites `site.yml` (its YAML
+writer only touches the paths it saves), so it survives normal editing.
 
 ### What the build does
 
@@ -115,5 +119,6 @@ When a release must bump it:
    both directions (data older than the build, data newer than the build).
 6. Note it in the CHANGELOG under the version that ships it.
 
-Until that happens, there is exactly one supported model and no migration
-command: a pre-4.0 site only needs the marker.
+Until that happens there is exactly one supported model, and `npm run
+migrate:v4` is the only migration: it normalises pre-4.0 data into model 1
+rather than changing the number.
