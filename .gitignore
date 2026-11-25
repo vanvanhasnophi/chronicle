@@ -14,9 +14,12 @@ node_modules/
 CLAUDE.md
 .dsh/
 
-# Local dev docs (not committed)
+# Local dev docs (not committed) — public docs are allow-listed
 docs/*
 !docs/aurora-assessment-2026-11-18.md
+!docs/roadmap.md
+!docs/content-model.md
+!docs/versioning.md
 
 # Astro — track type declarations, ignore dev artifacts
 packages/template-astro/.astro/collections/
