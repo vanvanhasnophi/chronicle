@@ -6,13 +6,16 @@ Everything planned originally for 4.0 and 4.1 ships as **one 4.0 release**, buil
 
 ## 4.0 — Next Tale
 
-### beta.1 — content model foundation
+### beta.1 — content model foundation + ecosystem alignment
 
 - [ ] `contentModel: 1` marker + build-time check in `site.yml`
 - [ ] `content.config.ts`: schema validation for post frontmatter; content stays in `data/`
 - [ ] Two post shapes: `posts/<id>/index.md` (with attachments) and `posts/<id>.md` (flat)
 - [ ] `pages` collection: about, legal (`/legal/<id>/`), `effectiveDate`, footer links
 - [ ] `npm run migrate:v4` skeleton (`__about__` → `pages/about`, dry-run, backup, report)
+- [ ] `@astrojs/check` + `astro check` in CI and a local script
+- [ ] `astro:env` for `SITE_URL` / `BASE_PATH` (typed, URL-validated) instead of raw `process.env`
+- [ ] `astro build` becomes a supported entry point (the generator step runs as a prebuild hook)
 
 ### beta.2 — taxonomy
 
@@ -41,6 +44,24 @@ Everything planned originally for 4.0 and 4.1 ships as **one 4.0 release**, buil
 - [ ] `create-chronicle-blog` scaffolder (`npm create chronicle-blog my-site`)
 - [ ] Image `srcset` with multiple widths (today only format switching is emitted)
 - [ ] Revisit incremental builds (each build currently clears `dist/` and `.astro/`)
+- [ ] Evaluate `@astrojs/rss` (feature parity first) and `astro:assets` for theme-owned images only
+
+## Astro ecosystem alignment
+
+Principle: adopt the ecosystem's **interfaces**, not its default directory.
+
+| Capability | 4.0 decision |
+|---|---|
+| `src/pages` routing, `.astro` components, integrations | already used, keep |
+| Content collections + zod schema | adopt, with a custom loader over `data/` |
+| `astro check`, `astro sync` | adopt, wired into CI |
+| `astro:env` | adopt for build-time config |
+| `astro build` as an entry point | adopt; the generator becomes a prebuild step |
+| `@astrojs/rss` | evaluate in beta.5, replace only on feature parity |
+| `@astrojs/sitemap` | keep the custom endpoint (plugin routes, base path, locales) |
+| `@astrojs/mdx` | not in 4.0; the custom renderer is a core capability |
+| `astro:assets` | theme-owned images only; content media stays URL-addressed for the CMS |
+| Built-in `prefetch` / View Transitions | keep the custom prefetcher; View Transitions optional |
 
 ### 4.0.0
 
