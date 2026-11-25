@@ -6,9 +6,9 @@
  * data directory fails with one readable message instead of a render error
  * deep inside the stack.
  *
- * The rules live in packages/shared/src/contentModel.ts — the same function
- * the template's data adapter calls, so `npm run build` and a bare
- * `astro build` agree.
+ * The rules live in packages/shared/src/contentModel.ts — the template's
+ * `chronicle-content-model` integration calls the same function, so
+ * `npm run build` and a bare `astro build` agree.
  */
 
 import fs from 'node:fs'

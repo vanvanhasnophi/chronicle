@@ -10,7 +10,7 @@
  * can refuse data it would silently misread instead of rendering it wrong.
  *
  * Pure functions with zero dependencies — the same check runs in the generator
- * preflight and in the template's data adapter.
+ * preflight and in the template's Astro config integration.
  */
 
 /** The content model this build reads and writes. Bump together with a migration. */
