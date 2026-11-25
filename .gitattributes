@@ -2,3 +2,8 @@
 # downstream forks, via Git Bash / WSL). Bash rejects CRLF: force LF in the
 # working tree regardless of core.autocrlf.
 *.sh text eol=lf
+
+# Generated, machine-written files: keep LF in the worktree so a build does not
+# dirty the tree on Windows (git autocrlf would turn them into CRLF on checkout).
+data/posts/index.json                    text eol=lf
+packages/template-astro/.astro/*.d.ts    text eol=lf
