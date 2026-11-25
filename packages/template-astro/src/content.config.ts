@@ -14,6 +14,7 @@
 import { defineCollection } from 'astro:content'
 import { z } from 'astro/zod'
 import { chroniclePosts } from './data/loaders/postsLoader'
+import { chroniclePages } from './data/loaders/pagesLoader'
 
 /** Accepts a YAML date or an ISO string, normalised to an ISO string. */
 const isoDate = z
@@ -53,4 +54,21 @@ const posts = defineCollection({
   }),
 })
 
-export const collections = { posts }
+const pages = defineCollection({
+  loader: chroniclePages(),
+  schema: z.looseObject({
+    title: z.string().optional(),
+    /** `about` only for id `about`; legal for every other id. */
+    kind: z.enum(['about', 'legal']).optional(),
+    /** About defaults to published, legal pages to draft (see shared/pages.ts). */
+    status: z.enum(['draft', 'published']).optional(),
+    /** Legal pages: the date the text takes effect. */
+    effectiveDate: isoDate.optional(),
+    updatedAt: isoDate.optional(),
+    /** Pre-4.0 about pages carry `lastModified`; kept for the migration. */
+    lastModified: isoDate.optional(),
+    summary: z.string().optional(),
+  }),
+})
+
+export const collections = { posts, pages }

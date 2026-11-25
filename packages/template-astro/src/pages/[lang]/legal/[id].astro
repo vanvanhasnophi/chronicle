@@ -1,0 +1,91 @@
+---
+import '../../../themes/aurora/styles/pages/about.css';
+export const prerender = true;
+
+export function getStaticPaths() {
+  // Only published legal pages get a route; drafts stay in the CMS/editor.
+  const legal = dataSource
+    .getPages()
+    .filter((page) => page.kind === 'legal' && page.status === 'published');
+  const paths = [];
+  for (const page of legal) {
+    for (const lang of ['zh', 'en']) {
+      paths.push({ params: { lang, id: page.id } });
+    }
+  }
+  return paths;
+}
+
+import Layout from '../../../layouts/Layout.astro';
+import { getTranslation, getLocale } from '../../../utils/i18n';
+import { loadSiteSettings } from '../../../utils/siteSettings';
+import { dataSource } from '../../../data';
+
+const locale = getLocale(Astro.locals);
+const t = (key: string) => getTranslation(locale, key);
+const settings = await loadSiteSettings();
+
+const page = dataSource.getPage(String(Astro.params.id), Astro.params.lang);
+const pageTitle = page?.title || (locale === 'zh-CN' ? '法律条款' : 'Legal');
+const metaDescription = page?.summary
+  || (locale === 'zh-CN' ? '法律条款页面' : 'Legal page');
+
+const effectiveLabel = locale === 'zh-CN' ? '生效日期' : 'Effective date';
+const updatedLabel = locale === 'zh-CN' ? '最后更新' : 'Last updated';
+---
+
+<Layout title={pageTitle} settings={settings} locale={locale} meta={{ description: metaDescription }}>
+  <main class="about-page">
+    <article class="about-article">
+      <h1 class="about-title">{pageTitle}</h1>
+
+      {
+        page?.effectiveDate ? (
+          <p class="legal-effective">
+            <span>{effectiveLabel}:</span>
+            <time datetime={page.effectiveDate}>{page.effectiveDate}</time>
+          </p>
+        ) : null
+      }
+
+      {
+        page?.compiledHtml ? (
+          <div class="chr-md" set:html={page.compiledHtml} />
+        ) : (
+          <div class="about-empty">
+            <p>{locale === 'zh-CN' ? '暂无内容。' : 'Nothing here yet.'}</p>
+          </div>
+        )
+      }
+
+      {
+        page?.updatedAt ? (
+          <div class="about-last-modified">
+            <span class="about-modified-label">{updatedLabel}:</span>
+            <time datetime={page.updatedAt}>{page.updatedAt}</time>
+          </div>
+        ) : null
+      }
+    </article>
+  </main>
+</Layout>
+
+<style>
+  .legal-effective {
+    display: flex;
+    gap: 0.4rem;
+    margin: -0.5rem 0 1.75rem;
+    color: var(--comp-text-sec);
+    font-size: 0.9rem;
+  }
+  .legal-effective time {
+    color: var(--app-text-pri);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<script>
+  import('../../../utils/mathTooltip').then(({ initMathTooltip }) => {
+    initMathTooltip(document.querySelector('.chr-md'));
+  }).catch(() => {});
+</script>

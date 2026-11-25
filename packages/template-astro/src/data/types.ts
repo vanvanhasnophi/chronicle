@@ -22,6 +22,10 @@ export interface DataSource {
   getCollections(): Record<string, unknown>
   /** 合集中按人工顺序展平的帖子 id 列表 */
   getCollectionPostIds(collectionName: string): string[]
+  /** 页面元数据（about / legal），不含正文 */
+  getPages(): PageMeta[]
+  /** 单个页面（含正文与编译 HTML）；about 会回退到 data/__about__ */
+  getPage(id: string, locale?: string): LocalPage | null
 }
 
 // ── 共享类型 ──────────────────────────────────────────────
@@ -53,6 +57,31 @@ export interface PostMeta {
 export interface LocalPost extends PostMeta {
     content: string;
     compiledHtml: string;
+}
+
+// ── Pages（about / legal）──────────────────────────────────
+
+export type PageKind = 'about' | 'legal'
+export type PageStatus = 'draft' | 'published'
+
+export interface PageMeta {
+  /** URL id: `about` or the `/legal/<id>/` segment. */
+  id: string
+  title: string
+  kind: PageKind
+  status: PageStatus
+  /** Legal pages: the date the text takes effect (YYYY-MM-DD). */
+  effectiveDate?: string
+  /** Last edit (YYYY-MM-DD). */
+  updatedAt?: string
+  summary?: string
+}
+
+export interface LocalPage extends PageMeta {
+  content: string
+  compiledHtml: string
+  /** Absolute path of the markdown file. */
+  sourcePath: string
 }
 
 export interface CommentConfig {

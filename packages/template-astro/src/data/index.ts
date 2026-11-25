@@ -34,5 +34,9 @@ export type {
   LocalSettings,
   ChronicleComment,
   CommentTreeNode,
+  PageMeta,
+  LocalPage,
+  PageKind,
+  PageStatus,
 } from './types';
 export { buildCommentTree } from './adapters/localFs';

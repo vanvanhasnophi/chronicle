@@ -25,12 +25,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import crypto from 'node:crypto';
-import { renderChronicleMarkdown, setRenderPostId } from '../../utils/chronicleMarkdown';
+import { renderChronicleMarkdown, setRenderPostId, setRelativeAssetBase } from '../../utils/chronicleMarkdown';
 import { resolveDataDir } from '../dataDir';
+import { discoverPageSources } from '../loaders/pagesLoader';
+import { parsePostFile } from '../loaders/postsLoader';
 import { normalizeAuthors } from '@chronicle/shared/src/utils';
 import { classifyPostEntry, hasFrontmatter } from '@chronicle/shared/src/posts';
+import { buildPageMeta } from '@chronicle/shared/src/pages';
 import { setDataContext, applyPostExtensions, applySettingsExtensions, getDataHook } from '../pluginHooks';
-import type { DataSource, PostMeta, LocalPost, LocalSettings, ChronicleComment, CommentTreeNode, PostPageConfig } from '../types';
+import type { DataSource, PostMeta, LocalPost, LocalSettings, ChronicleComment, CommentTreeNode, PostPageConfig, PageMeta, LocalPage } from '../types';
 
 /** Resolve asset:// protocol to /assets/ (public URL) */
 function resolveAssetUrl(url: string): string {
@@ -487,6 +490,79 @@ export function getPostById(id: string, locale?: string): LocalPost | null {
     return applyPostExtensions({ ...meta, content, compiledHtml });
 }
 
+// ── Pages（about / legal）─────────────────────────────────
+
+interface PageEntry {
+    meta: PageMeta;
+    filePath: string;
+    /** Served from data/__about__/index.md until the v4 migration runs. */
+    legacy: boolean;
+    /** Relative asset base for markdown inside the page. */
+    assetBase: string;
+}
+
+/**
+ * Read every page (data/pages/ plus the legacy about fallback) with its
+ * normalised metadata. Rules (ids, kind, status, dates) come from
+ * @chronicle/shared/src/pages so the content loader agrees.
+ */
+function readPageEntries(): PageEntry[] {
+    const entries: PageEntry[] = [];
+    for (const source of discoverPageSources(DATA_DIR)) {
+        const raw = fs.readFileSync(source.filePath, 'utf-8');
+        const { data } = parsePostFile(raw, source.filePath);
+        let meta: PageMeta;
+        try {
+            meta = buildPageMeta(source.id, data);
+        } catch (e) {
+            throw new Error(`${(e as Error).message} (${source.filePath})`);
+        }
+        entries.push({
+            meta,
+            filePath: source.filePath,
+            legacy: source.legacy === true,
+            assetBase: source.legacy
+                ? '/about'
+                : source.shape === 'folder'
+                    ? `/data/pages/${source.id}`
+                    : '/data/pages',
+        });
+    }
+    return entries;
+}
+
+/** Page metadata (about / legal), without the body. */
+export function getPages(): PageMeta[] {
+    return readPageEntries().map((entry) => entry.meta);
+}
+
+/** A single page with its rendered markdown; `about` falls back to __about__. */
+export function getPage(id: string, locale?: string): LocalPage | null {
+    const entry = readPageEntries().find((candidate) => candidate.meta.id === id);
+    if (!entry) return null;
+
+    const raw = fs.readFileSync(entry.filePath, 'utf-8');
+    const { body } = parsePostFile(raw, entry.filePath);
+
+    // Render markdown to HTML (cached per locale — SSG builds en/zh in parallel)
+    const loc = locale || 'en';
+    const cacheKey = `page:${id}:${loc}`;
+    let compiledHtml = _htmlCache.get(cacheKey) || '';
+    if (!compiledHtml && body) {
+        try {
+            // No post context: relative assets resolve inside the page directory.
+            setRenderPostId('');
+            setRelativeAssetBase(entry.assetBase);
+            compiledHtml = renderChronicleMarkdown(body, loc);
+            _htmlCache.set(cacheKey, compiledHtml);
+        } catch (e) {
+            console.warn('[localDataSource] Failed to render markdown for page', id, e);
+        }
+    }
+
+    return { ...entry.meta, content: body, compiledHtml, sourcePath: entry.filePath };
+}
+
 // ── Settings ─────────────────────────────────────────────
 
 /** Get public-safe settings */
@@ -718,4 +794,6 @@ export const localFsAdapter: DataSource = {
   getComments,
   getCollections,
   getCollectionPostIds,
+  getPages,
+  getPage,
 };

@@ -66,7 +66,18 @@ md.validateLink = (url: string) => {
 //   <file>          → /post/<id>/<file>        private post asset (relative path)
 // Non-ASCII filenames are encoded via encodeURI.
 let _currentPostId = ''
-export function setRenderPostId(id: string) { _currentPostId = id }
+/** Explicit base for relative asset URLs (pages live under /data/pages/<id>). */
+let _relativeBase = ''
+export function setRenderPostId(id: string) { _currentPostId = id; _relativeBase = '' }
+/** Point relative asset URLs at a document's own directory (pages). */
+export function setRelativeAssetBase(base: string) { _relativeBase = base }
+
+/** Base URL for relative references in the document being rendered. */
+function relativeAssetBase(): string {
+  if (_relativeBase) return _relativeBase
+  if (_currentPostId === '__about__') return '/about'
+  return _currentPostId ? `/post_attachment/${_currentPostId}` : ''
+}
 
 let _currentLocale = 'en'
 export function setRenderLocale(locale: string) { _currentLocale = locale }
@@ -92,9 +103,9 @@ const _normalizeLink = md.normalizeLink.bind(md);
 md.normalizeLink = (url: string) => {
   if (url.startsWith('asset://')) return resolveAssetUrl(url.slice(8));
   if (url.startsWith('post://')) return resolvePostUrl(url.slice(7));
-  // Relative path → resolve to post attachment directory
-  if (_currentPostId && !url.startsWith('/') && !url.startsWith('#') && !/^[a-zA-Z][\w+.-]*:/.test(url)) {
-    const base = withBase(_currentPostId === '__about__' ? '/about' : `/post_attachment/${_currentPostId}`);
+  // Relative path → resolve to the document's directory (post attachments / pages)
+  if (relativeAssetBase() && !url.startsWith('/') && !url.startsWith('#') && !/^[a-zA-Z][\w+.-]*:/.test(url)) {
+    const base = withBase(relativeAssetBase());
     return `${base}/${encodeFilename(url)}`;
   }
   // Site-root links written in Markdown follow the deploy base path too.
@@ -463,8 +474,8 @@ md.inline.ruler.before('link', 'chronicle_file_card', (state: any, silent: boole
     // Resolve asset:// and post:// in the URL after type-prefix stripping
     const cardUrl  = rawUrl.startsWith('asset://') ? resolveAssetUrl(rawUrl.slice(8))
                    : rawUrl.startsWith('post://') ? resolvePostUrl(rawUrl.slice(7))
-                   : (_currentPostId && !rawUrl.startsWith('/') && !/^[a-zA-Z][\w+.-]*:/.test(rawUrl)
-                       ? `${_currentPostId === '__about__' ? '/about' : `/post_attachment/${_currentPostId}`}/${encodeFilename(rawUrl)}`
+                   : (relativeAssetBase() && !rawUrl.startsWith('/') && !/^[a-zA-Z][\w+.-]*:/.test(rawUrl)
+                       ? `${relativeAssetBase()}/${encodeFilename(rawUrl)}`
                        : rawUrl);
     const subtitle = (isMailto || isLink) ? (prefixMatch?.actualUrl || href) : undefined;
 

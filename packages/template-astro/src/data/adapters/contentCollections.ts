@@ -124,6 +124,14 @@ export const contentCollectionsAdapter = {
   // ── 刻意不实现 getComments / getCollections / getCollectionPostIds ──
   // 方法不存在 → when.capability 探测（typeof ds[cap] === 'function'）不通过 →
   // 评论/态度/合集槽位自动收敛（内容源能力驱动 UI，T4 验证点）。
+
+  /** 内容源没有 pages 概念：about 页显示空状态，legal 路由不生成。 */
+  getPages(): [] {
+    return [];
+  },
+  getPage(): null {
+    return null;
+  },
 } as DataSource;
 
 export default contentCollectionsAdapter;

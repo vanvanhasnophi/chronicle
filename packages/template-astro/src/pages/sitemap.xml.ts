@@ -43,6 +43,16 @@ export const GET: APIRoute = async ({ site }) => {
         urls.push('  <url><loc>' + loc + '</loc>' + (lastmod ? '<lastmod>' + lastmod + '</lastmod>' : '') + '</url>');
       }
     }
+    // Published legal pages (pages collection, /legal/<id>/)
+    const legalPages = (dataSource.getPages() as any[])
+      .filter((page) => page.kind === 'legal' && page.status === 'published');
+    for (const page of legalPages) {
+      const lastmod = String(page.updatedAt || page.effectiveDate || '').slice(0, 10);
+      for (const lang of ['zh', 'en']) {
+        const loc = escapeXml(base + '/' + lang + '/legal/' + encodeURIComponent(page.id));
+        urls.push('  <url><loc>' + loc + '</loc>' + (lastmod ? '<lastmod>' + lastmod + '</lastmod>' : '') + '</url>');
+      }
+    }
   }
 
   const xml = '<?xml version="1.0" encoding="UTF-8"?>\n'

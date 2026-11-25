@@ -4,6 +4,7 @@ import { buildLocalizedPath } from "../utils/routeLocale";
 import { withBase } from "../utils/basePath";
 import { loadSiteSettings } from "../utils/siteSettings";
 import { loadSiteProfile } from "../utils/siteProfile";
+import { dataSource } from "../data";
 import { getTranslation, getLocale } from "../utils/i18n";
 import { getPluginSlots } from '../plugins';
 import ChronicleImage from "./ChronicleImage.astro";
@@ -70,13 +71,21 @@ const activityIcons = {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M 12 2 L 21 8 L 12 14 L 3 8 Z"/><path d="M 18 14 L 21 16 L 12 22 L 3 16 L 6 14"/></svg>',
 };
 
-// Home footer site links (profile links + RSS + About). Separators are rendered
-// only *between* items, so disabling any item never leaves a dangling "·".
+// Home footer site links (profile links + RSS + About + legal pages). Separators
+// are rendered only *between* items, so disabling any item never leaves a
+// dangling "·".
 type FooterLink = {
   label: string;
   href: string;
   attrs: Record<string, string>;
 };
+
+/** Published legal pages, footer order = id order. */
+const legalPages = dataSource
+  .getPages()
+  .filter((page) => page.kind === "legal" && page.status === "published")
+  .sort((a, b) => a.id.localeCompare(b.id));
+
 const footerLinks: FooterLink[] = [
   ...(profile?.links || []).map((l) => ({
     label: l.label,
@@ -100,6 +109,12 @@ const footerLinks: FooterLink[] = [
   ...(featureFlags?.aboutPage !== false
     ? [{ label: t("nav.about") as string, href: aboutPath, attrs: {} }]
     : []),
+  // Legal pages (data/pages/<id>.md or <id>/index.md, kind: legal, published).
+  ...legalPages.map((page) => ({
+    label: page.title,
+    href: buildLocalizedPath(locale, `/legal/${page.id}`),
+    attrs: {},
+  })),
 ];
 
 // Homepage card visibility

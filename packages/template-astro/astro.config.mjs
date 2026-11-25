@@ -793,6 +793,10 @@ export default defineConfig({
             // ── About attachments ────────────────────────────
             await syncDir(join(DATA_DIR, '__about__'), join(distDir, 'about'), { aggressive: true, webpQuality: 65, avifQuality: 40 });
 
+            // ── Pages (about / legal) attachments ────────────
+            // Page markdown resolves relative assets against /data/pages/<id>.
+            await syncDir(join(DATA_DIR, 'pages'), join(distDir, 'data', 'pages'));
+
             // ── Background + Avatar (aggressive, display-size aware) ──
             warnOversizedBackgroundVideo();
             await syncDir(join(DATA_DIR, 'background'), join(distDir, 'data', 'background'), { aggressive: true, webpQuality: 60, avifQuality: 35 });
