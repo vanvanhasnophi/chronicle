@@ -1,4 +1,4 @@
-# Chronicle Aurora — demo site content
+# Chronicle — demo site content
 
 This branch holds **only the demo site's data** (deployed at https://chr.eightyfor.top).
 The build fetches it into demo/:

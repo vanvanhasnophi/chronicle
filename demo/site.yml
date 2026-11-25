@@ -1,11 +1,11 @@
-# Chronicle Aurora site configuration — written by the CMS settings pages; hand-written comments and untouched keys are preserved
+# Chronicle site configuration — written by the CMS settings pages; hand-written comments and untouched keys are preserved
 
 # ── 主板基础（非插件）──
 
 # Homepage settings (Template settings → Homepage)
 homepage:
-  siteName: Chronicle Aurora
-  siteDescription: Chronicle Aurora — a local-first, git-backed Jamstack blog.
+  siteName: Chronicle
+  siteDescription: Chronicle — a local-first, git-backed Jamstack blog.
   icpNumber: ''
   homepageMode: split
   cardFlowMaxWidth: 1200

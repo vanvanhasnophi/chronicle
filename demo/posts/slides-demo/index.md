@@ -15,7 +15,7 @@ tinted-bg: true
 <!-- paginate: true -->
 <!-- _paginate: false -->
 <!-- _class: lead -->
-# Chronicle Aurora
+# Chronicle
 
 ## Local-first · Git-backed · Jamstack
 
@@ -220,8 +220,8 @@ Slides are fullscreen shows, not articles — they never enter prev/next navigat
 # Start Today
 
 ```bash
-git clone https://github.com/vanvanhasnophi/chronicle-aurora
-cd chronicle-aurora/packages/manager
+git clone https://github.com/vanvanhasnophi/chronicle
+cd chronicle/packages/manager
 npm install && npm run dev   # CMS in the browser
 ```
 
@@ -237,7 +237,7 @@ npm install && npm run dev   # CMS in the browser
 <!-- _class: lead -->
 # Thank You
 
-**Chronicle Aurora**  
+**Chronicle**  
 *Your words. Your files. Your control.*
 
-[github.com/vanvanhasnophi/chronicle-aurora](https://github.com/vanvanhasnophi/chronicle-aurora)
+[github.com/vanvanhasnophi/chronicle](https://github.com/vanvanhasnophi/chronicle)

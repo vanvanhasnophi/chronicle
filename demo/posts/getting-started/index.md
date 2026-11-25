@@ -9,7 +9,7 @@ status: published
 font: sans
 ---
 
-Welcome to Chronicle Aurora — a local-first, git-backed Jamstack blog system. No runtime server, no API, no database: content lives as YAML + Markdown on your filesystem, and deployment is `git push` → CI → CDN.
+Welcome to Chronicle — a local-first, git-backed Jamstack blog system. No runtime server, no API, no database: content lives as YAML + Markdown on your filesystem, and deployment is `git push` → CI → CDN.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ Welcome to Chronicle Aurora — a local-first, git-backed Jamstack blog system. 
 
 ## Installation
 
-Chronicle Aurora is a monorepo (npm workspaces). One command from the repo root installs every package:
+Chronicle is a monorepo (npm workspaces). One command from the repo root installs every package:
 
 ```bash
 npm run init
@@ -63,7 +63,7 @@ The frontmatter is pure content — the id never appears in it. It lives only in
 
 ## Deploying
 
-Chronicle Aurora deploys through Git-based CI/CD — `git push` is all it takes. The GitHub Actions workflow:
+Chronicle deploys through Git-based CI/CD — `git push` is all it takes. The GitHub Actions workflow:
 
 ```
 Push to main → Compress images → Astro SSG (data/ → dist/) → Deploy to Pages

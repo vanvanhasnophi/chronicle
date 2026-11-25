@@ -14,4 +14,4 @@ permissions:
 
 jobs:
   deploy:
-    uses: vanvanhasnophi/chronicle-aurora/.github/workflows/deploy.yml@main
+    uses: vanvanhasnophi/chronicle/.github/workflows/deploy.yml@main

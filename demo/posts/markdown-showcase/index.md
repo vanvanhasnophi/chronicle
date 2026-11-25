@@ -37,7 +37,7 @@ Footnotes are supported, too: this sentence carries a note[^1] that renders at t
 
 > Chronicle is local-first: content lives in `data/` as Markdown and YAML, and **Git is the API** — commit to save, push to deploy.
 >
-> — The Chronicle Aurora team
+> — The Chronicle team
 
 A quote is marked by a single 2px rail and secondary text — no box, no background. Nested quotes indent naturally: put a `>` inside a `>`.
 
@@ -112,7 +112,7 @@ The `:---` markers control column alignment — left, center, and right, as show
 - External: [Chronicle](https://chr.eightyfor.top)
 - Internal post: [Welcome to Chronicle](post://welcome-to-chronicle)
 - Shared asset: [meow.jpg](asset://meow.jpg)
-- Markdown document: [README](https://github.com/vanvanhasnophi/chronicle-aurora/blob/main/README.md)
+- Markdown document: [README](https://github.com/vanvanhasnophi/chronicle/blob/main/README.md)
 
 The `post://<id>` protocol links to another post by its **id** — the same id that appears in the address bar and keys `posts/index.json`. Because the id never changes, internal links stay valid across renames.
 
