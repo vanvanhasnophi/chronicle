@@ -26,7 +26,9 @@ import path from 'node:path';
 import YAML from 'yaml';
 import crypto from 'node:crypto';
 import { renderChronicleMarkdown, setRenderPostId } from '../../utils/chronicleMarkdown';
+import { resolveDataDir } from '../dataDir';
 import { normalizeAuthors } from '@chronicle/shared/src/utils';
+import { classifyPostEntry, hasFrontmatter } from '@chronicle/shared/src/posts';
 import { setDataContext, applyPostExtensions, applySettingsExtensions, getDataHook } from '../pluginHooks';
 import type { DataSource, PostMeta, LocalPost, LocalSettings, ChronicleComment, CommentTreeNode, PostPageConfig } from '../types';
 
@@ -254,21 +256,6 @@ function parseFrontmatterYaml(content: string): Record<string, unknown> {
 
 // ── Path Resolution ─────────────────────────────────────
 
-function resolveDataDir(): string {
-    if (process.env.CHRONICLE_DATA_DIR) {
-        return path.resolve(process.env.CHRONICLE_DATA_DIR);
-    }
-    // Monorepo: CWD is packages/template-astro/ during build
-    const repoRoot = path.resolve(process.cwd(), '..', '..');
-    const monorepoData = path.join(repoRoot, 'data');
-    if (fs.existsSync(monorepoData)) return monorepoData;
-    // Standalone lite checkout: CWD/data/
-    const cwd = path.resolve(process.cwd(), 'data');
-    if (fs.existsSync(cwd)) return cwd;
-    // Direct env or fallback
-    return path.resolve(process.cwd(), '..', '..', 'data');
-}
-
 const DATA_DIR = resolveDataDir();
 setDataContext({ dataDir: DATA_DIR });
 const POSTS_DIR = path.join(DATA_DIR, 'posts');
@@ -349,7 +336,7 @@ function normalizeDate(raw: unknown): string {
     return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
-/** Scan posts/ directory and build PostMeta array from index.md files (fallback when index.json is missing) */
+/** Scan posts/ directory and build PostMeta array from index.md / <id>.md files (fallback when index.json is missing) */
 function scanPostsFromDisk(): PostMeta[] {
     const posts: PostMeta[] = [];
 
@@ -357,14 +344,14 @@ function scanPostsFromDisk(): PostMeta[] {
 
     const entries = fs.readdirSync(POSTS_DIR, { withFileTypes: true });
     for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const dir = entry.name;
-        const dirPath = path.join(POSTS_DIR, dir);
+        // 两种文章形态：posts/<id>/index.md（可带附件）与 posts/<id>.md（扁平，无附件）
+        const ref = classifyPostEntry(entry.name, entry.isDirectory());
+        if (!ref) continue;
 
-        // Read the post body (data/posts/<id>/index.md)
-        const contentFile = 'index.md';
-        const id = dir;
-        const mdPath = path.join(dirPath, contentFile);
+        const id = ref.id;
+        const mdPath = ref.shape === 'folder'
+            ? path.join(POSTS_DIR, id, ref.filename)
+            : path.join(POSTS_DIR, ref.filename);
         if (!fs.existsSync(mdPath)) continue;
 
         let raw: string;
@@ -373,6 +360,8 @@ function scanPostsFromDisk(): PostMeta[] {
         } catch {
             continue;
         }
+        // 扁平文件只有在带 frontmatter 时才算文章（避免把 README.md 之类当文章）
+        if (ref.shape === 'flat' && !hasFrontmatter(raw)) continue;
 
         // Parse frontmatter
         const attrs = parseFrontmatterYaml(raw);
@@ -388,10 +377,10 @@ function scanPostsFromDisk(): PostMeta[] {
 
         posts.push({
             id,
-            title: String(attrs.title || dir),
+            title: String(attrs.title || id),
             date: normalizeDate(attrs.date),
             updatedAt: attrs.updatedAt ? normalizeDate(attrs.updatedAt) : undefined,
-            filename: contentFile,
+            filename: ref.filename,
             summary: String(attrs.summary || ''),
             image: attrs.image ? String(attrs.image) : undefined,
             tags: Array.isArray(attrs.tags) ? attrs.tags.map(String) : [],
@@ -402,7 +391,8 @@ function scanPostsFromDisk(): PostMeta[] {
             aiGenerated: !!attrs.aiGenerated,
             type: (attrs.type === 'slides' || !!attrs.marp) ? 'slides' : (String(attrs.type || '') || undefined),
             slideshow: attrs.slideshow || undefined,
-            dir,
+            // 扁平文章没有附件目录；dir 只对目录形态有意义。
+            dir: ref.shape === 'folder' ? id : '',
             toc: [],
         });
     }
@@ -460,13 +450,22 @@ export function getPublishedPosts(): PostMeta[] {
     return getAllPosts().filter(p => p.status === 'published');
 }
 
+/** Resolve a post's markdown file: folder shape first, then flat. */
+function resolvePostFile(id: string): string | null {
+    const folderFile = path.join(POSTS_DIR, id, 'index.md');
+    if (fs.existsSync(folderFile)) return folderFile;
+    const flatFile = path.join(POSTS_DIR, `${id}.md`);
+    if (fs.existsSync(flatFile)) return flatFile;
+    return null;
+}
+
 /** Get a single post with content */
 export function getPostById(id: string, locale?: string): LocalPost | null {
     const posts = getAllPosts();
     const meta = posts.find(p => p.id === id);
     if (!meta) return null;
-    const mdPath = path.join(POSTS_DIR, id, "index.md");
-    if (!fs.existsSync(mdPath)) return null;
+    const mdPath = resolvePostFile(id);
+    if (!mdPath) return null;
     const raw = fs.readFileSync(mdPath, "utf-8");
     const content = meta?.type === "slides" ? raw : stripFrontmatter(raw);
 

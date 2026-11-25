@@ -23,6 +23,9 @@ docs/*
 
 # Astro — track type declarations, ignore dev artifacts
 packages/template-astro/.astro/collections/
+packages/template-astro/.astro/content-assets.mjs
+packages/template-astro/.astro/content-modules.mjs
+packages/template-astro/.astro/data-store.json
 packages/template-astro/.astro/dev.json
 packages/template-astro/.astro/settings.json
 

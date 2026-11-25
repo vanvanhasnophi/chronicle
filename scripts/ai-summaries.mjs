@@ -84,7 +84,11 @@ const next = { ...existing };
 let generated = 0;
 for (const entry of entries.slice(0, limit)) {
   if (!entry?.id || entry.status === 'draft') continue;
-  const mdFile = path.join(dataDir, 'posts', entry.id, 'index.md');
+  // Two shapes: posts/<id>/index.md (folder) or posts/<id>.md (flat).
+  const folderFile = path.join(dataDir, 'posts', entry.id, 'index.md');
+  const mdFile = fs.existsSync(folderFile)
+    ? folderFile
+    : path.join(dataDir, 'posts', `${entry.id}.md`);
   if (!fs.existsSync(mdFile)) continue;
   const raw = fs.readFileSync(mdFile, 'utf-8');
   const sourceHash = hash(raw);

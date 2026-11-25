@@ -629,11 +629,18 @@ export default defineConfig({
          */
         function buildFullIndex(entries) {
           const postsDir = join(DATA_DIR, 'posts');
+          // Posts are either a folder (`<id>/index.md`) or a flat file (`<id>.md`).
+          const postFile = (id) => {
+            const folder = join(postsDir, id, 'index.md');
+            if (existsSync(folder)) return folder;
+            const flat = join(postsDir, `${id}.md`);
+            return existsSync(flat) ? flat : '';
+          };
           const fullIndex = [];
           for (const entry of entries) {
             if (entry.status !== 'published') continue;
-            const mdPath = join(postsDir, entry.id, 'index.md');
-            if (!existsSync(mdPath)) continue;
+            const mdPath = postFile(entry.id);
+            if (!mdPath) continue;
             const body = markdownToPlainText(stripFrontmatter(readFileSync(mdPath, 'utf-8')));
             fullIndex.push({
               id: entry.id,

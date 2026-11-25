@@ -14,6 +14,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import YAML from 'yaml'
 import { extractBodySummary } from '../../../shared/src/utils/summary.ts'
+import { classifyPostEntry, hasFrontmatter } from '../../../shared/src/posts.ts'
 
 /**
  * @typedef {Object} IndexEntry
@@ -144,14 +145,31 @@ export function buildPostIndex(dataDir) {
   if (!fs.existsSync(postsDir)) return index
 
   const collectionIndex = buildCollectionIndex(dataDir)
+  /** @type {Map<string, string>} id → file path, to catch folder/flat collisions */
+  const seen = new Map()
 
   for (const entry of fs.readdirSync(postsDir, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name.startsWith('_')) continue
-    const slug = entry.name
-    const mdPath = path.join(postsDir, slug, 'index.md')
+    // 两种文章形态：posts/<id>/index.md（可带附件）与 posts/<id>.md（扁平，无附件）
+    const ref = classifyPostEntry(entry.name, entry.isDirectory())
+    if (!ref) continue
+    const slug = ref.id
+    const mdPath = ref.shape === 'folder'
+      ? path.join(postsDir, slug, ref.filename)
+      : path.join(postsDir, ref.filename)
     if (!fs.existsSync(mdPath)) continue
 
+    const duplicate = seen.get(slug)
+    if (duplicate) {
+      throw new Error(
+        `Duplicate post id "${slug}": ${duplicate} and ${mdPath}. ` +
+        'A post is either a folder (index.md) or a flat file, not both.',
+      )
+    }
+    seen.set(slug, mdPath)
+
     const raw = fs.readFileSync(mdPath, 'utf-8')
+    // 扁平文件只有在带 frontmatter 时才算文章（避免把 README.md 之类当文章）
+    if (ref.shape === 'flat' && !hasFrontmatter(raw)) continue
     const fm = parseFrontmatter(raw)
 
     const collectionInfo = collectionIndex.get(slug)

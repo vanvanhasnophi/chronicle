@@ -18,6 +18,7 @@ import {
   getFileAtRevision,
 } from '@chronicle/shared/src/utils/git';
 import YAML from 'yaml';
+import { classifyPostEntry } from '@chronicle/shared/src/posts';
 import type { ChangedFile, YamlFileChange } from '../plugins/types';
 
 const DAY_MS = 86400000;
@@ -152,16 +153,18 @@ export async function getRecentUpdates(opts: {
     }
     if (inData && p.startsWith('data/posts/')) {
       const segments = p.slice('data/posts/'.length).split('/');
-      const id = segments[0];
-      // Only `data/posts/<id>/…` counts as a post. Skip `data/posts/index.json`
-      // (the derived metadata index) and any other file directly under posts/.
-      if (!id || segments.length < 2) continue;
+      // Two shapes: `data/posts/<id>/index.md` (folder) and `data/posts/<id>.md`
+      // (flat). Skip `data/posts/index.json` and translation files.
+      const ref = classifyPostEntry(segments[0], segments.length > 1);
+      if (!ref) continue;
+      if (ref.shape === 'folder' && segments[1] !== ref.filename) continue;
+      if (ref.shape === 'flat' && segments.length !== 1) continue;
+      const id = ref.id;
       // Deletions are counted separately from the net diff below.
       if (f.status === 'D') continue;
-      // "new" only when the post's `index.md` was added; an added attachment
+      // "new" only when the post's content file was added; an added attachment
       // alone marks the post as "modified", not "new".
-      const isIndex = segments.length === 2 && segments[1] === 'index.md';
-      const isNew = isIndex && f.status === 'A';
+      const isNew = f.status === 'A';
       const prev = seen.get(id);
       if (prev === undefined) {
         seen.set(id, isNew);
@@ -195,7 +198,7 @@ export async function getRecentUpdates(opts: {
         appUpdated = true;
         continue;
       }
-      if (f.status === 'D' && /^data\/posts\/[^/]+\/index\.md$/.test(f.path)) {
+      if (f.status === 'D' && /^data\/posts\/(?:[^/]+\/index\.md|[^/.]+\.md)$/.test(f.path)) {
         deletedCount += 1;
       }
     }
