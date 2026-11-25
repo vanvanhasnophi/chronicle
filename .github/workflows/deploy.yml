@@ -55,7 +55,7 @@ jobs:
           # branch is missing (e.g. it was never pushed), fail instead of quietly
           # deploying the empty template site to the demo domain.
           REPO="${{ github.repository }}"
-          UPSTREAM_REPO="vanvanhasnophi/chronicle-aurora"
+          UPSTREAM_REPO="vanvanhasnophi/chronicle"
 
           if git ls-remote --exit-code --heads origin demo >/dev/null 2>&1; then
             # This repo publishes the demo site: code from main, content from the

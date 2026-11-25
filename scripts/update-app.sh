@@ -13,7 +13,7 @@
 #   protected dirs is harmless — the backup overwrites it all.
 #
 # The upstream remote is explicit: it must be named "upstream". A downstream
-# repo's "origin" usually contains "chronicle-aurora" too (same repo name), so
+# repo's "origin" usually contains "chronicle" too (same repo name), so
 # falling back to origin would silently compare the repo against itself.
 
 set -euo pipefail
@@ -76,7 +76,7 @@ if [ -z "$UPSTREAM_REMOTE" ]; then
   say "  A template-generated repo (and a fork) has origin pointing at your own copy,"
   say "  so origin is never used. Add the upstream remote once:"
   say ""
-  say "    git remote add upstream https://github.com/vanvanhasnophi/chronicle-aurora.git"
+  say "    git remote add upstream https://github.com/vanvanhasnophi/chronicle.git"
   say ""
   say "  Then re-run: npm run update"
   exit 1

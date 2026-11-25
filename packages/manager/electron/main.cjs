@@ -237,7 +237,7 @@ if (Menu) {
     ]},
     { label: 'View', submenu: viewSubmenu },
     { label: 'Help', submenu: [
-      { label: 'Chronicle Docs', click: () => shell.openExternal('https://github.com/vanvanhasnophi/chronicle-aurora') },
+      { label: 'Chronicle Docs', click: () => shell.openExternal('https://github.com/vanvanhasnophi/chronicle') },
     ]},
   ]));
 }

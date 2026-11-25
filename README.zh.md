@@ -1,8 +1,11 @@
-# Chronicle Aurora
+# Chronicle
 
-[![Version](https://img.shields.io/badge/version-3.1.1-2f855a)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.0.0--beta.1-2f855a)](CHANGELOG.md)
+[![Codename](https://img.shields.io/badge/codename-Next%20Tale-2f855a)](#)
 
 中文 [English](README.md)
+
+> 4.x 的代号是 **Next Tale**。
 
 **在线演示：** [chr.eightyfor.top](https://chr.eightyfor.top) —— 由本仓库的 `demo` 分支构建。你的拷贝开箱是空的：`data/` 只有 schema 默认值，没有文章。
 
@@ -292,7 +295,7 @@ git push origin demo                      # 5. 推送即部署（或第 4 步加
 下游仓库可以在不丢内容的前提下拉取框架更新。配置一次，之后一条命令：
 
 ```bash
-git remote add upstream https://github.com/vanvanhasnophi/chronicle-aurora.git
+git remote add upstream https://github.com/vanvanhasnophi/chronicle.git
 npm run update
 ```
 
@@ -305,7 +308,7 @@ git -c core.autocrlf=false show upstream/main:scripts/update-app.sh > /tmp/updat
 bash /tmp/update-app.sh
 ```
 
-`upstream` remote 是必须的——脚本只认名字叫 `upstream` 的 remote。你的 `origin` 指向你自己的拷贝（template 生成的仓库和 fork 都还叫 `chronicle-aurora`），回退到它只会拿仓库跟自己比。缺 `upstream` 时 `npm run update` 会停下并打印添加命令。
+`upstream` remote 是必须的——脚本只认名字叫 `upstream` 的 remote。你的 `origin` 指向你自己的拷贝（template 生成的仓库和 fork 都还叫 `chronicle`），回退到它只会拿仓库跟自己比。缺 `upstream` 时 `npm run update` 会停下并打印添加命令。
 
 `npm run update`（需要 bash：macOS / Linux、WSL，Windows 上的 Git Bash 均可）：
 

@@ -6,7 +6,7 @@
  * `BASE_PATH` 前缀。构建后扫一遍 HTML，漏一个就失败——比线上 404 才发现好。
  *
  * 用法:
- *   node scripts/check-base-links.mjs --dir dist --base /chronicle-aurora/
+ *   node scripts/check-base-links.mjs --dir dist --base /chronicle/
  *   BASE_PATH=/repo/ node scripts/check-base-links.mjs --dir dist
  */
 

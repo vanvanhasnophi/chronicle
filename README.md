@@ -1,8 +1,11 @@
-# Chronicle Aurora
+# Chronicle
 
-[![Version](https://img.shields.io/badge/version-3.1.1-2f855a)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.0.0--beta.1-2f855a)](CHANGELOG.md)
+[![Codename](https://img.shields.io/badge/codename-Next%20Tale-2f855a)](#)
 
 [中文](README.zh.md) English
+
+> 4.x is codenamed **Next Tale**.
 
 **Live demo:** [chr.eightyfor.top](https://chr.eightyfor.top) — built from the `demo` branch of this repository. Your copy starts empty: `data/` ships schema defaults and no posts.
 
@@ -291,7 +294,7 @@ Use the CMS for your own site (`data/`); demo content stays plain files so it ca
 Downstream repos can pull framework updates without losing content. One-time setup, then one command:
 
 ```bash
-git remote add upstream https://github.com/vanvanhasnophi/chronicle-aurora.git
+git remote add upstream https://github.com/vanvanhasnophi/chronicle.git
 npm run update
 ```
 
@@ -305,7 +308,7 @@ git -c core.autocrlf=false show upstream/main:scripts/update-app.sh > /tmp/updat
 bash /tmp/update-app.sh
 ```
 
-The `upstream` remote is required — only a remote literally named `upstream` is used. Your `origin` points at your own copy (template-generated repos and forks both keep the `chronicle-aurora` name), so falling back to it would only ever compare the repo against itself. If `upstream` is missing, `npm run update` stops and prints the command to add it.
+The `upstream` remote is required — only a remote literally named `upstream` is used. Your `origin` points at your own copy (template-generated repos and forks both keep the `chronicle` name), so falling back to it would only ever compare the repo against itself. If `upstream` is missing, `npm run update` stops and prints the command to add it.
 
 `npm run update` (needs bash: macOS / Linux, WSL, or Git Bash on Windows):
 

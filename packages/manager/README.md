@@ -1,6 +1,6 @@
 # Chronicle Manager
 
-The desktop CMS for [Chronicle Aurora](https://github.com/vanvanhasnophi/chronicle-aurora) — a local-first, git-backed Jamstack blog.
+The desktop CMS for [Chronicle](https://github.com/vanvanhasnophi/chronicle) — a local-first, git-backed Jamstack blog.
 
 A Vue 3 + Vite SPA that runs in the browser (default) or inside an optional Electron shell.
 Reads and writes `data/` directly (no API server) and syncs via git (`git commit` / `git push`).
