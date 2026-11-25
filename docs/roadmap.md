@@ -2,29 +2,50 @@
 
 Chronicle is developed in generations. The current line is **4.x, codename “Next Tale”**.
 
+Everything planned originally for 4.0 and 4.1 ships as **one 4.0 release**, built up through betas so each capability can be tested on its own. There is no separate 4.1.
+
 ## 4.0 — Next Tale
 
-Theme: one content model for posts, pages, collections and tags.
+### beta.1 — content model foundation
 
-- [ ] `content.config.ts`: schema validation for post frontmatter, contents stay in `data/`
+- [ ] `contentModel: 1` marker + build-time check in `site.yml`
+- [ ] `content.config.ts`: schema validation for post frontmatter; content stays in `data/`
 - [ ] Two post shapes: `posts/<id>/index.md` (with attachments) and `posts/<id>.md` (flat)
-- [ ] Translations as sibling files: `index.<lang>.md` / `<id>.<lang>.md`
-- [ ] `pages` collection for about and legal pages (`/legal/<id>/`)
+- [ ] `pages` collection: about, legal (`/legal/<id>/`), `effectiveDate`, footer links
+- [ ] `npm run migrate:v4` skeleton (`__about__` → `pages/about`, dry-run, backup, report)
+
+### beta.2 — taxonomy
+
 - [ ] Collections: many-to-many membership, `primary`, `completed`, `appendMode`
+- [ ] `extensions.collections` and `index.json` become arrays (+ `indexVersion`)
 - [ ] `tags.yml` metadata (aliases, descriptions) — no tag pages, search only
-- [ ] `featured: boolean` replaces the magic `featured` / `精选` tags
-- [ ] `contentModel` marker + `npm run migrate:v4`
-- [ ] Remove leftovers: `__about__` special case, `/server/data/settings.json`, duplicated taxonomy rules
+- [ ] `featured: boolean` replaces the magic `featured` / `精选` values
+- [ ] CMS: pages tab, collection toggles, multi-collection display
 
-Not in 4.0: independent collection URLs, plugin split, incremental builds, performance work.
+### beta.3 — translations and AI
 
-## 4.1
+- [ ] Translations as sibling files: `index.<lang>.md` / `<id>.<lang>.md`
+- [ ] Missing-translation fallback + “untranslated” marking (`hreflang` stays correct)
+- [ ] AI fields (`lang`, `aiTranslated`, `sourceHash`) merged into the `ai-enhance` plugin
+- [ ] Stale-translation detection (source hash mismatch)
+
+### beta.4 — URLs and plugins
+
+- [ ] Per-collection URLs: `/collection/<slug>/` (nested routes in the plugin page shell)
+- [ ] Collections become a data-only plugin; the magazine-style UI moves to its own opt-in plugin
+- [ ] 2×2 isolation matrix (collections × magazine) in `verify:isolation`
+- [ ] Duplicate-route assertion in the plugin registry
+
+### beta.5 — tooling and performance
 
 - [ ] `create-chronicle-blog` scaffolder (`npm create chronicle-blog my-site`)
-- [ ] Per-collection URLs: `/collection/<slug>/` (requires nested routes in the plugin page shell)
-- [ ] Collections become a data-only plugin; the magazine-style UI moves to its own opt-in plugin
 - [ ] Image `srcset` with multiple widths (today only format switching is emitted)
 - [ ] Revisit incremental builds (each build currently clears `dist/` and `.astro/`)
+
+### 4.0.0
+
+- [ ] Migration report signed off on the `demo` branch (URLs and page count unchanged)
+- [ ] README, CHANGELOG and screenshots for the public release
 
 ## Won't do
 
