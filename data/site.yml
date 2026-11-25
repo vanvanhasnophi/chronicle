@@ -1,5 +1,9 @@
 # Chronicle site configuration — written by the CMS settings pages; hand-written comments and untouched keys are preserved
 
+# Content model version — the data layout this site is written in, independent of
+# the app version. Bumped only with a migration; see docs/versioning.md.
+contentModel: 1
+
 # ── 主板基础（非插件）──
 
 # Homepage settings (Template settings → Homepage)

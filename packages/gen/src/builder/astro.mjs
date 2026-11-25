@@ -13,6 +13,7 @@ import { execSync } from 'node:child_process';
 import { cpSync, existsSync, lstatSync, mkdirSync, rmSync, chmodSync, renameSync, readdirSync } from 'node:fs';
 import { join, resolve, parse, dirname } from 'node:path';
 import { rebuildPostIndex } from './indexer.mjs';
+import { assertContentModel } from './contentModel.mjs';
 
 // ── CLI argument parsing ──────────────────────────────────
 
@@ -135,6 +136,10 @@ export async function runBuild({ dataDir, codeDir, targetDir, granularity }) {
   }
 
   const startTime = Date.now();
+
+  // 0. Content model preflight — refuse data this build cannot read
+  //    (site.yml `contentModel`; warns when the marker is absent).
+  assertContentModel(dataDir);
 
   // 1. Sync settings (no-op in Aurora)
   await syncBuildSettings(dataDir, codeDir);

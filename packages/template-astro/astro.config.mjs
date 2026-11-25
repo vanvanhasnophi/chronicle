@@ -6,6 +6,7 @@ import { dirname, join, extname, parse, relative } from 'path';
 
 import icon from 'astro-icon';
 import YAML from 'yaml';
+import { checkContentModel, formatContentModelIssue } from '../shared/src/contentModel.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -51,6 +52,34 @@ function readSiteConfig() {
 
 // Module-level site config (used by feature flags).
 const siteConfig = readSiteConfig();
+
+// ── Content model check ───────────────────────────────────
+// data/site.yml declares which layout the site is written in (`contentModel`,
+// see docs/versioning.md). The generator preflight covers `npm run build`;
+// this integration makes a bare `astro build` refuse the same data before any
+// page renders. In dev it only warns, so editing stays possible.
+function chronicleContentModel() {
+  return {
+    name: 'chronicle-content-model',
+    hooks: {
+      'astro:config:setup': ({ command, logger }) => {
+        const siteFile = join(DATA_DIR, 'site.yml');
+        const check = checkContentModel(readSiteConfig(), { siteFound: existsSync(siteFile) });
+        if (check.level === 'ok') return;
+        const issue = formatContentModelIssue(check, siteFile);
+        if (check.level !== 'error') {
+          logger.warn(issue);
+          return;
+        }
+        if (command === 'build') throw new Error(issue);
+        // Dev keeps running so the author can still edit; only a build stops.
+        const notice = formatContentModelIssue({ ...check, level: 'warn' }, siteFile);
+        logger.warn(`${notice}\n    (this ${command} run continues; a production build stops here)`);
+      },
+    },
+  };
+}
+
 // ── Brand icons: directory-as-setting, like avatars ────────
 // Drop files into data/branding/ (favicon.svg, favicon-32.png, favicon.ico,
 // apple-touch-icon.png, icon-192.png, icon-512.png) and they are used as-is.
@@ -171,6 +200,7 @@ export default defineConfig({
   // idle (requestIdleCallback / 2s fallback), so the first paint is unaffected and
   // subsequent navigations still benefit from pre-warmed pages.
   integrations: [
+    chronicleContentModel(),
     // ── 插件注册清单生成（构建期）：样式严格跟插件走 ──
     // 只 import「启用」的插件 manifest（读 site.yml featureFlags）——禁用/删除的插件
     // manifest 不被 import → 组件/样式完全不进 bundle。生成 src/plugins/generated-registry.ts。
