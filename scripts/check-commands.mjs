@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — command documentation gate
+ * Chronicle — command documentation gate
  *
  * The full script list lives in README.md / README.zh.md ("Commands" /
  * "命令速查"). This check fails when package.json gains or loses a script

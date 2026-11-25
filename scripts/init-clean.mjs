@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 干净初始化（全局重置全做）
+ * Chronicle — 干净初始化（全局重置全做）
  *
  * 顺序执行三个全局重置：
  *   1. reset-site  — 模板设置 → schema 默认（site/profile/friends/collections/background.yml）

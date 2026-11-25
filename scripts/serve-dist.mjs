@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 预览构建产物
+ * Chronicle — 预览构建产物
  *
  * 服务根目录 dist/（`npm run build:astro` 的产物），而不是 packages/template-astro/dist
  * （那只是 gen 的中间目录）。零依赖，仅 Node 内置模块。

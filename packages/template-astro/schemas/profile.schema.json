@@ -90,7 +90,7 @@
     },
     "name": {
       "type": "string",
-      "default": "Chronicle Aurora",
+      "default": "Chronicle",
       "minLength": 1,
       "maxLength": 60,
       "x-widget": "input",

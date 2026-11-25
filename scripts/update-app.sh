@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Chronicle Aurora — Upstream Update
+# Chronicle — Upstream Update
 #
-# Pull the latest Chronicle Aurora framework changes from upstream
+# Pull the latest Chronicle framework changes from upstream
 # while keeping your local data/ and .chronicle/ untouched.
 #
 # Usage:
@@ -44,7 +44,7 @@ trap cleanup EXIT
 # ── Locate repo root ─────────────────────────────────────────
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
-  err "Not in a git repository. Run this from your Chronicle Aurora downstream repo."
+  err "Not in a git repository. Run this from your Chronicle downstream repo."
   exit 1
 }
 cd "$REPO_ROOT"
@@ -87,7 +87,7 @@ say "→ Using upstream: $UPSTREAM_REMOTE ($UPSTREAM_URL)"
 
 say ""
 say "┌──────────────────────────────────────────┐" "$BOLD"
-say "│  Chronicle Aurora — Upstream Update      │" "$BOLD"
+say "│  Chronicle — Upstream Update      │" "$BOLD"
 say "└──────────────────────────────────────────┘" "$BOLD"
 say ""
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 生成 README 截图（桌面 + 移动，浅色模式，英文首页）
+ * Chronicle — 生成 README 截图（桌面 + 移动，浅色模式，英文首页）
  *
  * 流程：复制 demo/ → 强制 `appearance.theme: light` → 构建到 dist-shots →
  * 起本地静态服务 → 用 Chrome DevTools Protocol 以真实设备尺寸截图 →

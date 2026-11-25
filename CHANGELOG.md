@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Chronicle Aurora. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
+All notable changes to Chronicle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project aims to follow [Semantic Versioning](https://semver.org/).
 
 Downstream repos: `npm run update` merges `upstream/main` into your branch and keeps `data/` and

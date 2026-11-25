@@ -54,7 +54,7 @@
       "properties": {
         "siteName": {
           "type": "string",
-          "default": "Chronicle Aurora",
+          "default": "Chronicle",
           "minLength": 1,
           "maxLength": 100,
           "x-widget": "input",
@@ -69,7 +69,7 @@
         },
         "siteDescription": {
           "type": "string",
-          "default": "Chronicle Aurora — a local-first, git-backed Jamstack blog.",
+          "default": "Chronicle — a local-first, git-backed Jamstack blog.",
           "x-widget": "textarea",
           "x-tab": "template-homepage",
           "x-group": "general",

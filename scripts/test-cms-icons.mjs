@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — CMS（浏览器模式）图标设置端到端测试
+ * Chronicle — CMS（浏览器模式）图标设置端到端测试
  *
  * 当前仓库不提供 Electron 运行时，CMS 以 Vite 浏览器模式运行（`npm run dev:cms`）。
  * 这个脚本自动：

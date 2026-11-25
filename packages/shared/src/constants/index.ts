@@ -1,7 +1,7 @@
 /**
  * Chronicle Shared Constants
  *
- * Updated for Chronicle Aurora (v4): local-first, no server, no API prefixes.
+ * Updated for Chronicle (v4): local-first, no server, no API prefixes.
  * Legacy constants kept as @deprecated for template backward compatibility.
  */
 

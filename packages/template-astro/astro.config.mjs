@@ -766,7 +766,7 @@ export default defineConfig({
 
             // site.webmanifest reflects the resolved icons (branding/ or avatar).
             try {
-              const siteName = String(siteConfig.homepage?.siteName || 'Chronicle Aurora').trim();
+              const siteName = String(siteConfig.homepage?.siteName || 'Chronicle').trim();
               const manifest = {
                 name: siteName,
                 short_name: siteName.length <= 12 ? siteName : (siteName.split(/\s+/)[0] || siteName).slice(0, 12),

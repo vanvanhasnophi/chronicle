@@ -1,5 +1,5 @@
 /**
- * Chronicle Aurora — Background Settings Utilities
+ * Chronicle — Background Settings Utilities
  *
  * Background images live in dedicated directories:
  *   Frontend: data/background/<any-image>.* + data/background/background.yml

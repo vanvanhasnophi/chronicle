@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 用演示站内容启动开发服务器
+ * Chronicle — 用演示站内容启动开发服务器
  *
  * 等价于 `CHRONICLE_DATA_DIR=demo npm run dev:astro`，但跨平台。
  * 需要先 `npm run demo:fetch`。

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 把本地 `demo/` 的改动提交到 `demo` 分支
+ * Chronicle — 把本地 `demo/` 的改动提交到 `demo` 分支
  *
  * `demo/` 在 main 上是 gitignore 的（内容是 `demo` 分支的检出副本），所以普通
  * `git commit` 不会带上它。这个脚本用一个临时 index：先读入 demo 分支的树，

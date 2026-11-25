@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — Markdown renderer parity check
+ * Chronicle — Markdown renderer parity check
  *
  * The SSG renderer (template-astro/src/utils/chronicleMarkdown.ts) and the CMS
  * renderer (manager/src/utils/markdownPreview.ts) are two hand-synced copies of

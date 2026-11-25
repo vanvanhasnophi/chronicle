@@ -1,5 +1,5 @@
 /**
- * Chronicle Aurora — 全局重置（UI 版本）
+ * Chronicle — 全局重置（UI 版本）
  *
  * 与 scripts/reset-site.mjs / reset-cms.mjs / reset-data.mjs 逻辑一致：
  *   1. resetSite()   — 模板设置 → schema 默认（site/profile/friends/collections/background.yml）

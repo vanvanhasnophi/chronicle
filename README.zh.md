@@ -16,8 +16,8 @@ Jamstack 博客模板。克隆即用——Markdown + YAML 内容管理、Git 版
 ## 模板特色
 
 <p align="center">
-  <img src=".github/assets/demo-desktop.png" alt="Chronicle Aurora desktop" width="70%">
-  <img src=".github/assets/demo-mobile.png" alt="Chronicle Aurora mobile" width="20%">
+  <img src=".github/assets/demo-desktop.png" alt="Chronicle desktop" width="70%">
+  <img src=".github/assets/demo-mobile.png" alt="Chronicle mobile" width="20%">
 </p>
 
 - **默认纯静态** — 所有页面在构建时预渲染。快速、SEO 友好，低客户端 JS。

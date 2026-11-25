@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 重置 CMS 配置（全局重置 ②）
+ * Chronicle — 重置 CMS 配置（全局重置 ②）
  *
  * 将 .chronicle/workspace.json 重置为 system-settings schema 的 default 值。
  * workspace.json 是程序写入的 JSON（非手写），直接全量重建即可。

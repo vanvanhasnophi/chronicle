@@ -1,4 +1,4 @@
-# Chronicle Aurora — Site Background (images/videos are auto-discovered from this directory; metadata for rendering)
+# Chronicle — Site Background (images/videos are auto-discovered from this directory; metadata for rendering)
 mode: cover # Cover mode: cover / contain / fixed
 posX: 50 # Horizontal position (0-100)
 posY: 50 # Vertical position (0-100)

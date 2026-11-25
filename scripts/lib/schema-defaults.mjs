@@ -1,5 +1,5 @@
 /**
- * Chronicle Aurora — schema 默认值生成工具（全局重置共用）
+ * Chronicle — schema 默认值生成工具（全局重置共用）
  *
  * 输入 JSON Schema（draft-2020-12 + x-* 扩展），递归生成默认数据对象：
  *   - 有 default → 深拷贝 default

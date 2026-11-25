@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 品牌资产生成（默认社交分享图 + favicon / 图标集）
+ * Chronicle — 品牌资产生成（默认社交分享图 + favicon / 图标集）
  *
  * 读取 data/site.yml 的站点名、描述与强调色，生成：
  *   public/branding/og-default.png   1200×630 默认 og:image
@@ -43,7 +43,7 @@ if (!fs.existsSync(SITE_FILE)) {
 }
 
 const site = YAML.parse(fs.readFileSync(SITE_FILE, 'utf-8')) || {}
-const siteName = String(site.homepage?.siteName || 'Chronicle Aurora').trim()
+const siteName = String(site.homepage?.siteName || 'Chronicle').trim()
 const description = String(site.homepage?.siteDescription || '').trim()
 const accent = /^#[0-9a-fA-F]{6}$/.test(String(site.appearance?.accent || '')) ? site.appearance.accent : '#10b981'
 
@@ -120,7 +120,7 @@ function ogSvg() {
   ${descLines.map((line, index) => `<text x="82" y="${descY + index * 46}" font-family="${FONT_STACK}"
         font-size="34" font-weight="400" fill="#b9c0cc">${escapeXml(line)}</text>`).join('\n  ')}
   <rect x="80" y="540" width="104" height="6" rx="3" fill="${accent}"/>
-  <text x="200" y="551" font-family="${FONT_STACK}" font-size="26" fill="#7d8797">Chronicle Aurora</text>
+  <text x="200" y="551" font-family="${FONT_STACK}" font-size="26" fill="#7d8797">Chronicle</text>
 </svg>`
 }
 

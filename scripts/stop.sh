@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Chronicle Aurora — 停止占用常用端口的进程
+# Chronicle — 停止占用常用端口的进程
 #   CMS 开发服务器: 5173（manager vite）
 #   Astro 开发/预览: 4321（astro dev/preview）
 #   （可选扩展: 追加端口到 PORTS 数组）

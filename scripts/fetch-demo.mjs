@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 取演示站内容
+ * Chronicle — 取演示站内容
  *
  * 演示站（https://chr.eightyfor.top）的内容放在 `demo` 分支上，仓库默认分支只放模板。
  * 这样「Use this template」拿到的仓库是干净的（data/ 只有 schema 默认值），

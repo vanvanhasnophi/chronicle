@@ -1,5 +1,5 @@
 /**
- * Chronicle Aurora — Schema API (local fs backend)
+ * Chronicle — Schema API (local fs backend)
  *
  * Replaces the old HTTP GET /api/admin/schemas with direct filesystem reads.
  * Schemas are loaded from the template-astro package's schemas/ directory.

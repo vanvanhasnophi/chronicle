@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 重置模板设置（全局重置 ①）
+ * Chronicle — 重置模板设置（全局重置 ①）
  *
  * 将 data/ 下的模板设置文件重置为各 schema 的 default 值（即「我们目前的配置」）：
  *   - data/site.yml          ← homepage + appearance 默认树 + post-page 的 post 子树

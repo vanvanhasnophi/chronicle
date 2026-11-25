@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — background video converter (ffmpeg, on-demand)
+ * Chronicle — background video converter (ffmpeg, on-demand)
  *
  * ffmpeg is deliberately NOT a repo or build dependency. Install it only when
  * you need to convert a background video, then run this script and delete the

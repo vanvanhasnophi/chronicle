@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 版本提升（单一来源：根 package.json）
+ * Chronicle — 版本提升（单一来源：根 package.json）
  *
  * 一次同步：根 package.json → 4 个 workspace → package-lock 的版本字段 → CHANGELOG 新章节。
  * 不会自动 commit / push；加 --tag 时只打本地 tag，推不推由你决定。

@@ -16,8 +16,8 @@ Content is YAML + Markdown on the filesystem. [Astro](https://astro.build) SSG â
 ## Features
 
 <p align="center">
-  <img src=".github/assets/demo-desktop.png" alt="Chronicle Aurora desktop" width="70%">
-  <img src=".github/assets/demo-mobile.png" alt="Chronicle Aurora mobile" width="20%">
+  <img src=".github/assets/demo-desktop.png" alt="Chronicle desktop" width="70%">
+  <img src=".github/assets/demo-mobile.png" alt="Chronicle mobile" width="20%">
 </p>
 
 - **Static by default** â€” every page pre-rendered at build time. Fast, SEO-friendly, low client-side JS required for reading.

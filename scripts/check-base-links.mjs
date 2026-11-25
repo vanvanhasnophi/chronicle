@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 校验 base 前缀
+ * Chronicle — 校验 base 前缀
  *
  * 站点部署在子路径（GitHub Pages 项目页）时，所有站内绝对链接都必须带
  * `BASE_PATH` 前缀。构建后扫一遍 HTML，漏一个就失败——比线上 404 才发现好。

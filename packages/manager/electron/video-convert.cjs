@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Chronicle Aurora — background video conversion (shared, Node-only)
+ * Chronicle — background video conversion (shared, Node-only)
  *
  * The CMS runs the same ffmpeg pipeline as `scripts/convert-video.mjs` when a
  * background VIDEO is selected: compress the source to a web-ready H.264 and

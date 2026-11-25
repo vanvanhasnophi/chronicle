@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 将 schema 的 default 字段重新制定为当前生效值
+ * Chronicle — 将 schema 的 default 字段重新制定为当前生效值
  *
  * 读取 data/ 下各 yml 的现值，按路径回填对应 schema JSON 的 `default`：
  *   - template-settings.schema.json ← data/site.yml（homepage/appearance/search 块 + features/analytics 顶层）
@@ -43,8 +43,8 @@ function log(...args) { console.log('[sync-defaults]', ...args) }
  */
 const EMPTY_OVERRIDES = {
   // 必填占位文本（无个人信息）
-  'homepage.siteName': 'Chronicle Aurora',
-  'homepage.siteDescription': 'Chronicle Aurora — a local-first, git-backed Jamstack blog.',
+  'homepage.siteName': 'Chronicle',
+  'homepage.siteDescription': 'Chronicle — a local-first, git-backed Jamstack blog.',
   'name': 'Author Name',
   // 内容性空值
   'bio': '',

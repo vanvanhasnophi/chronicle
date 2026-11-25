@@ -1,7 +1,7 @@
 {
-  "name": "Chronicle Aurora",
+  "name": "Chronicle",
   "short_name": "Chronicle",
-  "description": "Chronicle Aurora — a local-first, git-backed Jamstack blog.",
+  "description": "Chronicle — a local-first, git-backed Jamstack blog.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

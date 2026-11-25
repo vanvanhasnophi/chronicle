@@ -1,5 +1,5 @@
 /**
- * Chronicle Aurora — Settings API (local fs backend)
+ * Chronicle — Settings API (local fs backend)
  *
  * Replaces the old HTTP-based settings API with direct filesystem reads.
  * Reads settings from data/site.yml + .chronicle/workspace.json via the

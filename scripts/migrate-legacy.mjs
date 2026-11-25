@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — Legacy Data Migration
+ * Chronicle — Legacy Data Migration
  *
  * Usage:
  *   node scripts/migrate-legacy.mjs data.tar.gz
@@ -174,7 +174,7 @@ function migrateSettings(legacy) {
 
 function migrateProfile(legacy) {
   const doc = readDoc('profile.yml')
-  doc.setIn(['name'], str(legacy.name || 'Chronicle Aurora'))
+  doc.setIn(['name'], str(legacy.name || 'Chronicle'))
   doc.setIn(['bio'], str(legacy.bio))
   doc.setIn(['location'], str(legacy.location))
   doc.setIn(['showProfileCard'], bool(legacy.showProfileCard, false))

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — 清空 data/（全局重置 ③）
+ * Chronicle — 清空 data/（全局重置 ③）
  *
  * 清空内容数据，回到全新博客状态：
  *   - 删除: posts/*（含文章与 index.json）、comments/、comments-pending/、assets/、

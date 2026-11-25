@@ -1,4 +1,4 @@
-# Chronicle Aurora — GitHub Pages 自定义响应头
+# Chronicle — GitHub Pages 自定义响应头
 # 缓存策略：HTML 短 TTL（配合 Cloudflare Cache Rule 边缘缓存），指纹资源 immutable。
 
 # 默认：静态资源可缓存

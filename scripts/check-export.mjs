@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Chronicle Aurora — export / print behaviour gate
+ * Chronicle — export / print behaviour gate
  *
  * Guards the parts of the CMS that don't go through the Markdown renderers:
  *   1. export packaging: which files get copied, how they are renamed, whether
