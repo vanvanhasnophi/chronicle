@@ -1,0 +1,11 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "types": [
+      "astro/client"
+    ],
+    "paths": {
+      "@chronicle/shared/*": ["../shared/*"]
+    }
+  }
+}

@@ -1,0 +1,33 @@
+---
+// Redirect / → /{lang}/
+---
+<html lang="en" data-base={import.meta.env.BASE_URL}>
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" /><title>Redirecting…</title>
+    <noscript><meta http-equiv="refresh" content={`0; url=${import.meta.env.BASE_URL}zh/`} /></noscript></head>
+  <body>
+    <script>
+      (function () {
+        var base = String(document.documentElement.dataset.base || '/').replace(/\/+$/, '');
+        var here = window.location.pathname;
+        if (base && here.indexOf(base) === 0) here = here.slice(base.length);
+        var path = here.replace(/\/+$/,'').replace(/^\//,'');
+        var zh = false;
+        try {
+          var pref = localStorage.getItem('locale') || '';
+          if (pref === 'zh-CN' || pref === 'zh') zh = true;
+          else if (pref === 'en') zh = false;
+          else {
+            var m = document.cookie.match(/(?:^|; )locale=([^;]+)/);
+            var cp = m ? m[1] : '';
+            if (cp === 'zh-CN' || cp === 'zh') zh = true;
+            else if (cp === 'en') zh = false;
+            else zh = (navigator.language || '').toLowerCase().indexOf('zh') === 0;
+          }
+        } catch (e) {
+          zh = (navigator.language || '').toLowerCase().indexOf('zh') === 0;
+        }
+        window.location.replace(base + (zh ? '/zh/' : '/en/') + path + window.location.search + window.location.hash);
+      })();
+    </script>
+  </body>
+</html>

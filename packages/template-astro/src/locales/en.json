@@ -1,0 +1,156 @@
+{
+  "app": {
+    "title": "Chronicle"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "friends": "Friends",
+    "collection": "Collection",
+    "posts": "Posts",
+    "settings": "Settings",
+    "about": "About",
+    "menu": "Menu"
+  },
+  "inblog": {
+    "toc-title": "Table of Contents",
+    "backToBlogs": "Back to Posts",
+    "anonymousAuthor": "Anonymous",
+    "moreAuthors": " +{count}",
+    "wordSing": "{count} word",
+    "wordPlural": "{count} words",
+    "min": "min",
+    "created": "Created",
+    "updated": "Updated",
+    "words": "Words",
+    "readingTime": "Read",
+    "aiGeneratedTip": "The post contains AI Generated Content"
+  },
+  "misc": {
+    "backToTop": "Back to Top"
+  },
+  "blog": {
+    "featured": "Featured",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "viewAll": "All featured",
+    "filter": "Filter",
+    "allTags": "All tags",
+    "sort": "Sort",
+    "sortNewest": "Newest",
+    "sortOldest": "Oldest",
+    "sortTitle": "By title",
+    "timeline": "Timeline",
+    "expandAll": "Expand all",
+    "exitTimeline": "Exit timeline",
+    "clearFilter": "Clear",
+    "back": "All posts",
+    "resultsCount": "{count} posts",
+    "noMatchingPosts": "No posts match this filter.",
+    "allPosts": "All Posts",
+    "loadingPosts": "Loading posts...",
+    "noPostsNote": "No posts found. Stay tuned!",
+    "daySuffix": ""
+  },
+  "home": {
+    "title": "Chronicle Aurora",
+    "tagline": "Love what you wanna love, be what you wanna be.<br/>爱我所爱，自成一派。",
+    "viewBlogs": "View Blogs",
+    "viewThemePost": "Read Theme Post",
+    "noSummary": "No summary available. Open the post for the full reading.",
+    "cardSubtitle": "Love what you wanna love, be what you wanna be.",
+    "cardAuthorLine": "Almost done~ Just a moment~",
+    "defaultAuthorName": "Editor",
+    "metaDescription": "Chronicle homepage",
+    "homepageArchitecture": "Homepage information architecture",
+    "readingLatest": "Read the latest post",
+    "browseAllPosts": "Browse all posts",
+    "scrollDown": "Scroll down",
+    "filterByTags": "Filter by tags",
+    "articleCardTitle": "Spotlight",
+    "latestArticles": "Latest articles",
+    "viewAll": "View all",
+    "viewAllTags": "View all tags",
+    "noPostsAvailable": "No posts.",
+    "authorInfo": "Author info",
+    "topicNavigation": "Topic navigation",
+    "quickSearch": "Quick search",
+    "collectionList": "Collection list",
+    "tagCloud": "Tag cloud",
+    "popularRecommended": "Popular / recommended",
+    "recommendedReading": "Recommended reading",
+    "noRecommendedPosts": "No recommended posts yet.",
+    "recentUpdates": "Recently updated",
+    "updateTime": "Last updated",
+    "unknownTime": "Unknown",
+    "updateContent": "What changed",
+    "staleNotice": "No content updates for a while.",
+    "updatedApp": "App updated",
+    "newPost": "New post",
+    "updatedPost": "Updated post",
+    "deletedPosts": "Deleted {count} posts",
+    "noRecentChanges": "No recent content changes",
+    "siteLinksAria": "Site links",
+    "rssSubscribe": "RSS",
+    "email": "Email",
+    "footerCopyright": "© {year} {siteTitle} · All rights reserved · <备案号>",
+    "collectionMeta": "{posts} posts · {groups} groups",
+    "browseBlogs": "Browse blogs",
+    "browseBlogsDescription": "Track the latest writing by timeline.",
+    "topicSearch": "Topic search",
+    "topicSearchDescription": "Follow topics through tags.",
+    "collectionsEntry": "Collections",
+    "collectionsEntryDescription": "Pack posts into curated streams.",
+    "friendsEntry": "Friends",
+    "friendsEntryDescription": "Connect to the site network.",
+    "aboutEntry": "About",
+    "aboutEntryDescription": "Learn about the author and the site.",
+    "recentPublished": "Recently Published"
+  },
+  "file": {
+    "type": {
+      "audio": "Audio",
+      "video": "Video",
+      "document": "Document",
+      "code": "Code/Text",
+      "file": "File"
+    }
+  },
+  "settings": {
+    "locale": {
+      "follow": "Follow Browser",
+      "zh": "中文（简体）",
+      "en": "English"
+    }
+  },
+  "preview": {
+    "pdfUnsupported": "Your browser cannot display PDF inline. You can download it instead.",
+    "downloadPdf": "Download PDF",
+    "textLoading": "Loading text...",
+    "textPreviewEmpty": "Empty file",
+    "textDecodeError": "Unable to preview text (decoding or loading failed)",
+    "truncated": "Truncated",
+    "previewNotSupported": "Preview not supported for this file type.",
+    "mermaid": {
+      "downloadSvg": "Download SVG",
+      "split": "Split View",
+      "code": "Code Only",
+      "preview": "Preview Only",
+      "notPrerendered": "No prerendered Mermaid SVG found."
+    }
+  },
+  "tag": {
+    "featured": "featured"
+  },
+  "formula": {
+    "copied": "Formula copied"
+  },
+  "date": {
+    "justNow": "just now",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "yesterday": "yesterday",
+    "twoDaysAgo": "2d ago",
+    "daysAgo": "{count}d ago"
+  }
+}

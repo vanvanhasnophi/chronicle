@@ -1,0 +1,1120 @@
+<template>
+    <div class="file-manager">
+        <!-- Sidebar: category tabs (matches FilePicker cloud-leftbar style) -->
+        <aside class="sidebar">
+            <!-- Source switch -->
+            <div class="sidebar-header">{{ $t('file.sourceTitle') }}</div>
+            <div class="sidebar-source-switch">
+                <button type="button" class="sidebar-items"
+                    :class="{ active: fileSource === 'assets' }" @click="fileSource = 'assets'; loadFiles()">
+                    <span class="icon-svg" v-html="Icons.archive"></span> Assets
+                </button>
+                <button type="button" class="sidebar-items"
+                    :class="{ active: fileSource === 'post' }" @click="fileSource = 'post'; loadFiles()">
+                    <span class="icon-svg" v-html="Icons.folder"></span> Post
+                </button>
+            </div>
+            <!-- Post picker (only when post source selected) -->
+            <div v-if="fileSource === 'post'" class="sidebar-post-picker">
+                <PostIdPicker v-model="selectedPostId" :placeholder="$t('postPicker.openAriaLabel') || 'Select post'" showId />
+            </div>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-header">{{ $t('file.categoriesTitle') }}</div>
+            <div class="sidebar-nav">
+                <button v-for="cat in categories" :key="cat.id" type="button" class="sidebar-items"
+                    :class="{ active: currentCategory === cat.id }" @click="navigate(cat.id)">
+                    {{ $t(cat.label) }}
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main content area -->
+        <section class="chr-fb-container">
+            <!-- Toolbar (matches FilePicker cloud-toolbar) -->
+            <div class="chr-fb-toolbar">
+                <h3 class="toolbar-title">{{ currentCategoryLabel }}</h3>
+                <!-- Narrow screen controls: source + post + category -->
+                <div class="toolbar-narrow-controls">
+                    <select v-model="fileSource" class="category-select source-select" @change="loadFiles()">
+                        <option value="assets">Assets</option>
+                        <option value="post">Post</option>
+                    </select>
+                    <PostIdPicker v-if="fileSource === 'post'" v-model="selectedPostId"
+                        :placeholder="$t('postPicker.openAriaLabel') || 'Select post'" class="narrow-post-picker" />
+                    <select v-model="currentCategory" class="category-select">
+                        <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+                            {{ $t(cat.label) }}
+                        </option>
+                    </select>
+                </div>
+                <div class="chr-fb-toolbar-right">
+                    <!-- View toggle: Card / List -->
+                    <div class="segment-control-bar chr-fb-view-toggle">
+                        <button type="button"
+                            :class="['icon-label-btn', 'segment-control-item', 'chr-fb-view-btn', view === 'card' ? 'active' : '']"
+                            @click="view = 'card'">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <rect x="2" y="2" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                                <rect x="15" y="2" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                                <rect x="2" y="15" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                                <rect x="15" y="15" width="7" height="7" rx="1" stroke="currentColor"
+                                    stroke-width="2" />
+                            </svg>
+                            <span class="label">{{ $t('filePicker.cardView') || 'Card' }}</span>
+                        </button>
+                        <button type="button"
+                            :class="['icon-label-btn', 'segment-control-item', 'chr-fb-view-btn', view === 'list' ? 'active' : '']"
+                            @click="view = 'list'">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="1" cy="3" r="1.25" fill="currentColor" />
+                                <line x1="6" y1="3" x2="23" y2="3" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
+                                <circle cx="1" cy="12" r="1.25" fill="currentColor" />
+                                <line x1="6" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
+                                <circle cx="1" cy="21" r="1.25" fill="currentColor" />
+                                <line x1="6" y1="21" x2="23" y2="21" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
+                            </svg>
+                            <span class="label">{{ $t('filePicker.listView') || 'List' }}</span>
+                        </button>
+                    </div>
+
+                    <!-- Sort controls -->
+                    <div class="chr-fb-sort-group">
+                        <select v-model="selectedSortBy" class="chr-fb-sort-select">
+                            <option value="created">{{ $t('filePicker.sortByCreated') || 'Created' }}</option>
+                            <option value="name">{{ $t('filePicker.sortByName') || 'Name' }}</option>
+                            <option value="type">{{ $t('filePicker.sortByType') || 'Type' }}</option>
+                        </select>
+                        <button type="button" class="chr-fb-sort-toggle"
+                            :class="sortOrder" @click="toggleAscDesc">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <line x1="6" y1="20" x2="6" y2="3" />
+                                <line x1="3" y1="6" x2="6" y2="3" />
+                                <line x1="10" y1="4" x2="18" y2="4" />
+                                <line x1="10" y1="9" x2="19" y2="9" />
+                                <line x1="10" y1="14" x2="20" y2="14" />
+                                <line x1="10" y1="19" x2="21" y2="19" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="chr-fb-toolbar-actions">
+                        <!-- Refresh -->
+                        <button type="button" class="icon-label-btn chr-fb-btn narrow" @click="refresh"
+                            :title="$t('file.refresh')">
+                            <span class="icon-svg" v-html="Icons.refresh"></span>
+                        </button>
+
+                        <!-- Import -->
+                        <button type="button" class="icon-label-btn chr-fb-btn" @click="triggerUploadInput">
+                            <span class="icon-svg" v-html="Icons.plus"></span>
+                            <span class="label">{{ $t('file.import') || 'Import' }}</span>
+                        </button>
+                        <input ref="uploadInput" type="file" style="display:none" @change="handleUpload" multiple />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch action bar -->
+            <div v-if="selectMode" class="batch-bar">
+                <span class="batch-count">{{ $t('file.selectedCount', { count: selectedFileCount }) }}</span>
+                <label class="batch-check-all">
+                    <input type="checkbox" :checked="allFilesSelected" @change="toggleSelectAllFiles" />
+                    {{ $t('file.selectAll') }}
+                </label>
+                <div class="batch-actions">
+                    <button class="chr-fb-btn batch-delete-btn" @click="bulkDeleteFiles">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        <span class="label">{{ $t('file.deleteSelected') }}</span>
+                    </button>
+                </div>
+                <button class="chr-fb-btn batch-clear-btn" @click="clearFileSelection" :title="$t('file.clearSelection')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <!-- File list area -->
+            <div class="chr-fb-list">
+                <!-- Loading state -->
+                <div v-if="loading" class="chr-fb-loading">{{ $t('file.loading') }}</div>
+
+                <!-- Empty state -->
+                <div v-else-if="items.length === 0" class="chr-fb-empty">
+                    {{ $t('file.noFiles') }}
+                </div>
+
+                <!-- Card view -->
+                <div v-else-if="view === 'card'" class="chr-fb-grid">
+                    <div v-for="f in items" :key="f.key || f.name"
+                        :class="['chr-fb-card', f._justUploaded ? 'chr-fb-just-uploaded' : '', selectedPaths.has(f.path) ? 'chr-fb-card--selected' : '']"
+                        @click="openPreview(f)">
+                        <input
+                            type="checkbox"
+                            class="card-checkbox"
+                            :checked="selectedPaths.has(f.path)"
+                            @click.stop="toggleSelectFile(f.path, $event)"
+                        />
+                        <div class="chr-fb-thumb">
+                            <img v-if="isImage(f.name)" :src="getThumbUrl(f)" loading="lazy" />
+                            <div v-else class="chr-fb-icon" v-html="getIconForFile(f.name)"></div>
+                        </div>
+                        <div class="chr-fb-meta">
+                            <span class="chr-fb-name" :title="f.name">{{ f.name }}</span>
+                            <div class="card-actions">
+                                <button class="chr-fb-preview-btn" :title="$t('file.copyLink')"
+                                    @click.stop="copyLink(f)" v-html="Icons.link"></button>
+                                <button class="chr-fb-preview-btn delete-action" :title="$t('file.delete')"
+                                    @click.stop="deleteItem(f.path)" v-html="Icons.trash"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- List / table view -->
+                <table v-else class="chr-fb-table">
+                    <thead>
+                        <tr>
+                            <th class="chr-fb-check-col">
+                                <input type="checkbox" :checked="allFilesSelected" @change="toggleSelectAllFiles" />
+                            </th>
+                            <th class="chr-fb-name-col" @click="sortBy('name')">
+                                {{ $t('filePicker.name') || 'Name' }}
+                            </th>
+                            <th class="chr-fb-type-col" @click="sortBy('type')">
+                                {{ $t('filePicker.type') || 'Type' }}
+                            </th>
+                            <th class="chr-fb-created-col" @click="sortBy('created')">
+                                {{ $t('filePicker.created') || 'Created' }}
+                            </th>
+                            <th class="chr-fb-actions-col">{{ $t('filePicker.name') ? '' : '' }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="f in items" :key="f.key || f.name"
+                            :class="[f._justUploaded ? 'chr-fb-just-uploaded' : '', selectedPaths.has(f.path) ? 'chr-fb-row--selected' : '']"
+                            @click="openPreview(f)">
+                            <td class="chr-fb-check-col" @click.stop>
+                                <input
+                                    type="checkbox"
+                                    class="row-checkbox"
+                                    :checked="selectedPaths.has(f.path)"
+                                    @click.stop="toggleSelectFile(f.path, $event)"
+                                />
+                            </td>
+                            <td class="chr-fb-name-col">{{ f.name }}</td>
+                            <td class="chr-fb-type-col">{{ getFileTypeLabel(f.name, t) }}</td>
+                            <td class="chr-fb-created-col">
+                                {{ formatDateTime(f.created, locale, 'relative', 'show-weekday', 'hide-seconds', '24h',
+                                t) }}
+                            </td>
+                            <td class="chr-fb-actions-col">
+                                <button class="chr-fb-preview-btn" :title="$t('file.copyLink')"
+                                    @click.stop="copyLink(f)" v-html="Icons.link"></button>
+                                <button class="chr-fb-preview-btn delete-action" :title="$t('file.delete')"
+                                    @click.stop="deleteItem(f.path)" v-html="Icons.trash"></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { readDir, deleteFile as delFile, uploadFile as writeFileData, safeFileName } from '../data/dataAccess'
+import { usePreview } from '../composables/usePreview'
+import useToast from '../composables/useToast'
+import PostIdPicker from '../components/PostIdPicker.vue'
+import {
+    isImage,
+    getCategoryFromFile,
+    getIconForFile,
+    getFileTypeLabel,
+    getThumbUrl,
+} from '../composables/useFileTypes'
+import { Icons } from '../utils/icons'
+import { formatDateTime } from '../utils/dateUtils'
+
+const { t, locale } = useI18n()
+const { openPreview: openGlobalPreview, openImagePreview } = usePreview()
+const { show: showToast } = useToast()
+
+// ── Categories (sidebar tabs) ────────────────────────────────────────
+
+const categories = [
+    { id: 'all', label: 'file.categories.all' },
+    { id: 'pic', label: 'file.categories.images' },
+    { id: 'video', label: 'file.categories.videos' },
+    { id: 'sound', label: 'file.categories.audio' },
+    { id: 'doc', label: 'file.categories.documents' },
+    { id: 'txt', label: 'file.categories.text' },
+    { id: 'other', label: 'file.categories.others' },
+]
+
+const currentCategory = ref('all')
+const currentCategoryLabel = computed(() => {
+    const key = categories.find(c => c.id === currentCategory.value)?.label || 'file.library'
+    return t(key)
+})
+
+// ── File data ────────────────────────────────────────────────────────
+
+const allItems = ref<any[]>([])
+const loading = ref(false)
+const uploadInput = ref<HTMLInputElement | null>(null)
+
+// ── Multi-select state ────────────────────────────────────────────────
+const selectMode = ref(false)
+const selectedPaths = ref<Set<string>>(new Set())
+
+function toggleSelectFile(path: string, event?: MouseEvent) {
+  selectMode.value = true
+  const shift = event?.shiftKey
+  if (shift && lastClickedPath.value) {
+    const visible = items.value.map(f => f.path)
+    const start = visible.indexOf(lastClickedPath.value)
+    const end = visible.indexOf(path)
+    if (start !== -1 && end !== -1) {
+      const [lo, hi] = start < end ? [start, end] : [end, start]
+      for (let i = lo; i <= hi; i++) selectedPaths.value.add(visible[i])
+    }
+  } else if (selectedPaths.value.has(path)) {
+    selectedPaths.value.delete(path)
+  } else {
+    selectedPaths.value.add(path)
+  }
+  lastClickedPath.value = path
+  selectedPaths.value = new Set(selectedPaths.value)
+}
+
+const lastClickedPath = ref<string | null>(null)
+
+function toggleSelectAllFiles() {
+  selectMode.value = true
+  const visible = items.value.map(f => f.path)
+  if (visible.every(p => selectedPaths.value.has(p))) {
+    visible.forEach(p => selectedPaths.value.delete(p))
+  } else {
+    visible.forEach(p => selectedPaths.value.add(p))
+  }
+  selectedPaths.value = new Set(selectedPaths.value)
+}
+
+function clearFileSelection() {
+  selectMode.value = false
+  selectedPaths.value = new Set()
+  lastClickedPath.value = null
+}
+
+const allFilesSelected = computed(() => {
+  const visible = items.value
+  return visible.length > 0 && visible.every(f => selectedPaths.value.has(f.path))
+})
+
+const selectedFileCount = computed(() => selectedPaths.value.size)
+
+// ── Batch operations ──────────────────────────────────────────────────
+
+async function bulkDeleteFiles() {
+  const paths = [...selectedPaths.value]
+  if (!paths.length) return
+  if (!confirm(t('file.batchDeleteConfirm', { count: paths.length }))) return
+
+  let success = 0, failed = 0
+  for (const p of paths) {
+    try {
+      const ok = await delFile(`data/assets/${p.split('/').pop()}`)
+      if (ok) success++; else failed++
+    } catch { failed++ }
+  }
+  showToast(t('file.batchDeleteResult', { success, failed: failed ? `, ${failed} failed` : '' }), {
+    status: failed ? 'warning' : 'success', position: 'bottom-center', shape: 'capsule', duration: 3000,
+  })
+  clearFileSelection()
+  await loadItems()
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────
+
+function onFileKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+    const el = document.activeElement
+    if (el && (el.closest('.file-manager') || el.tagName === 'BODY')) {
+      e.preventDefault()
+      const visible = items.value.map(f => f.path)
+      visible.forEach(p => selectedPaths.value.add(p))
+      selectedPaths.value = new Set(selectedPaths.value)
+    }
+  }
+  if (e.key === 'Escape') {
+    clearFileSelection()
+  }
+}
+
+// ── View & sort state ────────────────────────────────────────────────
+
+const view = ref<'card' | 'list'>('card')
+const selectedSortBy = ref<'created' | 'name' | 'type'>('created')
+const sortOrder = ref<'asc' | 'desc'>('desc')
+const fileSource = ref<'assets' | 'post'>('assets')
+const selectedPostId = ref<string | null>(null)
+
+// ── Sorted & filtered items ──────────────────────────────────────────
+
+const items = computed(() => {
+    // Filter by category
+    let filtered =
+        currentCategory.value === 'all'
+            ? [...allItems.value]
+            : allItems.value.filter((f) => getCategoryFromFile(f) === currentCategory.value)
+
+    // Sort
+    filtered.sort((a, b) => {
+        const key = selectedSortBy.value
+        const dir = sortOrder.value === 'asc' ? 1 : -1
+
+        if (key === 'created') {
+            const da = a.created || 0
+            const db = b.created || 0
+            return (da - db) * dir
+        }
+        if (key === 'name') {
+            const na = (a.displayname || a.name || '').toString()
+            const nb = (b.displayname || b.name || '').toString()
+            return na.localeCompare(nb) * dir
+        }
+        // type
+        const ta = (a.type || '').toString()
+        const tb = (b.type || '').toString()
+        return ta.localeCompare(tb) * dir
+    })
+
+    return filtered
+})
+
+// ── Data loading ─────────────────────────────────────────────────────
+
+function loadFiles() { loadItems() }
+
+// Watch post selection for reload
+watch(selectedPostId, () => { if (fileSource.value === 'post') loadItems() })
+
+async function loadItems() {
+    loading.value = true
+    allItems.value = []
+    try {
+        const isPost = fileSource.value === 'post' && selectedPostId.value
+        const dir = isPost ? `data/posts/${selectedPostId.value}` : 'data/assets'
+        const urlBase = isPost ? `/data/posts/${selectedPostId.value}` : '/data/assets'
+        const names = await readDir(dir)
+        const filtered = isPost ? names.filter(n => n !== 'index.md' && n !== 'index.json') : names
+        allItems.value = filtered.map((name) => ({
+            name, url: `${urlBase}/${encodeURIComponent(name)}`,
+            path: `${urlBase}/${encodeURIComponent(name)}`,
+            thumb: `${urlBase}/${encodeURIComponent(name)}`,
+            type: getCategoryFromFile({ name }),
+            key: `${urlBase}/${encodeURIComponent(name)}`,
+        }))
+    } catch (e) {
+        console.error('loadItems failed', e)
+        allItems.value = []
+    } finally {
+        loading.value = false
+    }
+}
+
+// ── Upload ───────────────────────────────────────────────────────────
+
+function triggerUploadInput() {
+    uploadInput.value?.click()
+}
+
+async function uploadFileToServer(file: File): Promise<string | null> {
+    try {
+        const safeName = safeFileName(file.name)
+        const isPost = fileSource.value === 'post' && selectedPostId.value
+        const destDir = isPost ? `data/posts/${selectedPostId.value}` : 'data/assets'
+        const urlBase = isPost ? `/data/posts/${selectedPostId.value}` : '/data/assets'
+        const ok = await writeFileData(`${destDir}/${safeName}`, file)
+        if (!ok) return null
+        return `${urlBase}/${encodeURIComponent(safeName)}`
+    } catch (e) {
+        console.error('upload failed', e)
+        return null
+    }
+}
+
+async function handleUpload(e: Event) {
+    const input = e.target as HTMLInputElement
+    if (!input.files || input.files.length === 0) return
+
+    const uploadedKeys: string[] = []
+
+    for (const file of Array.from(input.files)) {
+        // Create a placeholder entry that shows the upload highlight
+        const tempKey = `upload_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+        const placeholder: any = {
+            key: tempKey,
+            name: file.name,
+            type: getCategoryFromFile({ name: file.name }),
+            path: tempKey,
+            _justUploaded: true,
+            _uploading: true,
+        }
+        allItems.value.push(placeholder)
+        uploadedKeys.push(tempKey)
+
+        // Upload in background
+        uploadFileToServer(file)
+            .then(() => {
+                // Remove placeholder, will be replaced on reload
+                const idx = allItems.value.findIndex((f: any) => f.key === tempKey)
+                if (idx >= 0) allItems.value.splice(idx, 1)
+            })
+            .catch(() => {
+                // Remove failed placeholder
+                const idx = allItems.value.findIndex((f: any) => f.key === tempKey)
+                if (idx >= 0) allItems.value.splice(idx, 1)
+            })
+            .finally(() => {
+                // Reload when the last upload finishes
+                const stillUploading = allItems.value.some(
+                    (f: any) => uploadedKeys.includes(f.key) && f._uploading
+                )
+                if (!stillUploading) {
+                    loadItems()
+                }
+            })
+    }
+
+    input.value = ''
+}
+
+// ── Sort helpers ─────────────────────────────────────────────────────
+
+function sortBy(key: string) {
+    const keyMap: Record<string, 'created' | 'name' | 'type'> = {
+        created: 'created',
+        name: 'name',
+        type: 'type',
+    }
+    const sortKey = keyMap[key]
+    if (!sortKey) return
+
+    if (selectedSortBy.value === sortKey) {
+        sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+    } else {
+        selectedSortBy.value = sortKey
+        sortOrder.value = 'asc'
+    }
+}
+
+function toggleAscDesc() {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+}
+
+// ── Navigation ───────────────────────────────────────────────────────
+
+function navigate(catId: string) {
+    currentCategory.value = catId
+}
+
+// ── Preview ──────────────────────────────────────────────────────────
+
+function openPreview(file: any) {
+    const url = file.url || `/server/data/upload/${file.path}`
+    if (isImage(file.name)) {
+        openImagePreview(url)
+    } else {
+        openGlobalPreview({
+            name: file.name,
+            path: url,
+            type: getFileTypeLabel(file.name, t),
+        })
+    }
+}
+
+// ── File actions ─────────────────────────────────────────────────────
+
+function copyLink(file: any) {
+    let url = file.url || `/server/data/upload/${file.path}`
+    // Encode spaces and control chars that break markdown link syntax.
+    // CJK is left as-is — browsers handle it and encoding would desync
+    // from server-side filenames.
+    url = url.replace(/[\s\x00-\x1f]/g, (c: string) => encodeURIComponent(c))
+    navigator.clipboard.writeText(`![](${url})`)
+}
+
+async function deleteItem(path: string) {
+    if (!confirm(`Permanently delete this file?`)) return
+
+    await delFile(`data/assets/${decodeURIComponent(path).split('/').pop()}`)
+    loadItems()
+}
+
+function refresh() {
+    loadItems()
+}
+
+// ── Init ─────────────────────────────────────────────────────────────
+
+onMounted(() => {
+    loadItems()
+    document.addEventListener('keydown', onFileKeyDown)
+})
+
+onUnmounted(() => {
+    document.removeEventListener('keydown', onFileKeyDown)
+})
+</script>
+
+<style scoped>
+/* ── Page-level layout (FileManager-specific) ──────────────────────── */
+
+.file-manager {
+    display: flex;
+    height: 100%;
+    background: transparent;
+    color: var(--app-text-pri);
+    gap: 0;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+
+.sidebar-source-switch {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 4px;
+}
+.sidebar-source-switch :deep(.icon-svg) { width: 14px; height: 14px; }
+.sidebar-post-picker { margin-bottom: 4px; }
+.sidebar-divider { height: 1px; background: var(--border-color); margin: 4px 0 8px; }
+
+.sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    margin: 0.6rem 0 0.6rem 0.6rem;
+    height: calc(100% - 1.2rem);
+    background: transparent;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+}
+
+.sidebar-header {
+    padding: 12px 14px 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--comp-text-sec);
+    font-weight: 600;
+    letter-spacing: 0.6px;
+}
+
+.sidebar :deep(.sidebar-items) {
+    font-size: 0.95rem;
+    padding: 0.55rem 0.9rem;
+}
+
+.sidebar-source-switch {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.sidebar-source-switch .sidebar-items {
+    gap: 10px;
+}
+
+.sidebar-source-switch .icon-svg, .sidebar-source-switch :deep(svg){
+    width: 18px;
+    height: 18px;
+}
+
+/* ── Container ─────────────────────────────────────────────────────── */
+
+.chr-fb-container {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 1.75rem;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+/* ── Toolbar ───────────────────────────────────────────────────────── */
+
+:deep(.chr-fb-toolbar) {
+    height: 48px;
+    margin-bottom: 1rem;
+}
+
+.toolbar-title {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--comp-text-pri);
+}
+
+/* View toggle */
+:deep(.chr-fb-view-toggle) {
+    background: color-mix(var(--comp-bg-glass) 40%, transparent);
+    height: 28px;
+    border-radius: 10px;
+    margin-right: 10px;
+}
+
+/* Category select — hidden by default, shown at narrow widths */
+.category-select {
+    display: none;
+}
+
+.category-select:focus {
+    outline: none;
+}
+
+:deep(.chr-fb-view-btn) {
+    font-size: 0.85rem;
+    gap: 7px;
+}
+
+:deep(.chr-fb-view-btn svg) {
+    width: 14px;
+    height: 14px;
+}
+
+
+
+/* Toolbar buttons (refresh, upload) */
+:deep(.chr-fb-btn) {
+    font-size: 0.9rem;
+    padding: 0.55rem 0.7rem;
+}
+
+:deep(.chr-fb-btn svg),
+:deep(.chr-fb-btn .icon-svg) {
+    width: 18px;
+    height: 18px;
+}
+
+/* ── File list height (compensate for taller toolbar) ──────────────── */
+
+:deep(.chr-fb-list) {
+    flex: 1;
+    min-height: 0;
+}
+
+
+/* ── Checkboxes ─────────────────────────────────────────────────────── */
+
+.card-checkbox {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.chr-fb-card:hover .card-checkbox,
+.chr-fb-card--selected .card-checkbox {
+    opacity: 1;
+}
+
+.row-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.chr-fb-check-col {
+    width: 32px;
+    text-align: center;
+    padding: 0 !important;
+}
+
+.chr-fb-check-col input {
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.chr-fb-card--selected {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.chr-fb-row--selected {
+    background: color-mix(in srgb, var(--accent) 6%, transparent) !important;
+}
+
+.chr-fb-row--selected td:first-child {
+    border-left: 3px solid var(--accent);
+}
+
+/* ── Grid / card view ──────────────────────────────────────────────── */
+
+:deep(.chr-fb-grid) {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+:deep(.chr-fb-card) {
+    padding: 0.75rem;
+    gap: 0.6rem;
+    border-radius: 14px;
+    position: relative;
+}
+
+:deep(.chr-fb-thumb) {
+    height: 130px;
+    border-radius: 10px;
+}
+
+:deep(.chr-fb-thumb img) {
+    border-radius: 10px;
+}
+
+:deep(.chr-fb-icon) {
+    width: 44px;
+    height: 44px;
+}
+
+:deep(.chr-fb-name) {
+    font-size: 0.9rem;
+}
+
+:deep(.chr-fb-meta) {
+    min-height: 28px;
+}
+
+/* ── Card actions (copy link + delete) ─────────────────────────────── */
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.card-actions .chr-fb-preview-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+}
+
+.card-actions .chr-fb-preview-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.delete-action:hover {
+    background: var(--status-error) !important;
+    color: #fff !important;
+}
+
+/* ── Table / list view ─────────────────────────────────────────────── */
+
+:deep(.chr-fb-table) {
+    font-size: 0.95rem;
+}
+
+:deep(.chr-fb-table th) {
+    padding: 0.55rem 0.6rem;
+    font-size: 0.85rem;
+}
+
+:deep(.chr-fb-table td) {
+    padding: 0.45rem 0.6rem;
+}
+
+:deep(.chr-fb-type-col) {
+    font-size: 0.85rem;
+}
+
+:deep(.chr-fb-created-col) {
+    font-size: 0.85rem;
+}
+
+:deep(.chr-fb-actions-col) {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+}
+
+:deep(.chr-fb-actions-col .chr-fb-preview-btn) {
+    display: inline-flex;
+    margin-left: 3px;
+}
+
+:deep(.chr-fb-actions-col .chr-fb-preview-btn svg) {
+    width: 15px;
+    height: 15px;
+}
+
+/* ── Preview button in list rows ───────────────────────────────────── */
+
+:deep(.chr-fb-actions-col .chr-fb-preview-btn) {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    justify-content: center;
+}
+
+/* ── Loading / empty ───────────────────────────────────────────────── */
+
+:deep(.chr-fb-loading),
+:deep(.chr-fb-empty) {
+    font-size: 1rem;
+    padding: 60px;
+}
+
+/* ── Responsive: toolbar & sidebar ─────────────────────────────────── */
+
+/* Allow toolbar-right to wrap when it runs out of space */
+:deep(.chr-fb-toolbar) {
+    min-height: 48px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+:deep(.chr-fb-toolbar-right) {
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+/* ≤ 1100px: hide button labels, keep icons only */
+@media (max-width: 1100px) {
+    .toolbar-title {
+        font-size: 1.15rem;
+    }
+
+    :deep(.chr-fb-view-btn .label) {
+        display: none;
+    }
+
+    :deep(.chr-fb-btn .label) {
+        display: none;
+    }
+
+    :deep(.chr-fb-view-btn) {
+        padding: 0 8px;
+    }
+
+    :deep(.chr-fb-toolbar) {
+        padding-right: 0;
+    }
+}
+
+/* ≤ 850px: shrink sidebar + reduce grid */
+@media (max-width: 850px) {
+    .sidebar {
+        width: 160px;
+        margin: 0.4rem 0 0.4rem 0.4rem;
+        padding-top: 48px;
+    }
+
+    .sidebar :deep(.sidebar-items) {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.65rem;
+    }
+
+    .sidebar-header {
+        font-size: 10px;
+        padding: 8px 10px 6px;
+    }
+    .sidebar-source-switch .icon-svg, .sidebar-source-switch :deep(svg){
+        width: 16px;
+        height: 16px;
+    }
+
+    .main-content {
+        padding: 1rem 1rem;
+    }
+
+    :deep(.chr-fb-grid) {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 0.75rem;
+    }
+
+    :deep(.chr-fb-thumb) {
+        height: 100px;
+    }
+
+    :deep(.chr-fb-card) {
+        padding: 0.5rem;
+        border-radius: 10px;
+    }
+
+    :deep(.chr-fb-icon) {
+        width: 36px;
+        height: 36px;
+    }
+
+    :deep(.chr-fb-name) {
+        font-size: 0.8rem;
+    }
+
+    .card-actions .chr-fb-preview-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 5px;
+    }
+
+    .card-actions .chr-fb-preview-btn svg {
+        width: 13px;
+        height: 13px;
+    }
+}
+
+.toolbar-narrow-controls { display: none; }
+.source-select { min-width: 70px; }
+.narrow-post-picker { min-width: 120px; }
+
+/* ≤ 600px: sidebar gone, narrow controls visible */
+@media (max-width: 600px) {
+    .toolbar-narrow-controls { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+    .file-manager {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    /* Select replaces title — transparent, inline, arrow visible, touch height */
+    .category-select {
+        display: inline-block;
+        width: auto;
+        appearance: none;
+        -webkit-appearance: none;
+        height: 44px;
+        padding: 0 1.5rem 0 2rem;
+        font-size: 1.3rem;
+        font-weight: 600;
+        font-variation-settings: 'wght' 600;
+        color: var(--comp-text-pri);
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0 center;
+        background-size: 18px;
+    }
+
+
+    /* Hide the original title */
+    .toolbar-title {
+        display: none;
+    }
+
+    /* Controls row 2 — full width */
+    :deep(.chr-fb-toolbar-right) {
+        width: 100%;
+    }
+
+    .main-content {
+        padding: 0.75rem;
+        flex: 1;
+    }
+
+    /* Touch-friendly toolbar buttons */
+    :deep(.chr-fb-btn) {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.5rem 0.8rem;
+        font-size: 0.875rem;
+    }
+
+    :deep(.chr-fb-btn svg) {
+        width: 20px;
+        height: 20px;
+    }
+
+
+    :deep(.chr-fb-view-toggle) {
+        height: 34px;
+    }
+
+    :deep(.chr-fb-view-btn) {
+        width: 34px;
+    }
+
+
+    /* Grid: touch-friendly cards */
+    :deep(.chr-fb-grid) {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 0.6rem;
+    }
+
+    :deep(.chr-fb-thumb) {
+        height: 110px;
+    }
+
+    :deep(.chr-fb-name) {
+        font-size: 0.85rem;
+    }
+
+    /* Card action buttons ≥ 36px */
+    .card-actions {
+        gap: 6px;
+    }
+
+    .card-actions .chr-fb-preview-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+    }
+
+    .card-actions .chr-fb-preview-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Table row height */
+    :deep(.chr-fb-table) {
+        font-size: 0.85rem;
+    }
+
+    :deep(.chr-fb-table th),
+    :deep(.chr-fb-table td) {
+        padding: 0.5rem 0.45rem;
+    }
+
+    :deep(.chr-fb-actions-col .chr-fb-preview-btn) {
+        width: 36px;
+        height: 36px;
+    }
+
+    :deep(.chr-fb-actions-col .chr-fb-preview-btn svg) {
+        width: 16px;
+        height: 16px;
+    }
+}
+</style>

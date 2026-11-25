@@ -1,0 +1,204 @@
+/* ── Critical CSS: Base (all pages) ────────────────────────────────
+   Inlined in <head> to prevent CLS when full CSS loads asynchronously.
+   Covers: reset, nav shell geometry — everything shared across pages.
+
+   Tokens are inlined immediately before this block — var() refs resolve
+   on first paint without any fallback needed.
+
+   Update in sync with: global.css :root tokens, app.css shell. */
+
+/* ── Reset + base ── */
+:root, html, body {
+  margin:0; padding:0;
+  background:var(--app-bg-pri); color:var(--app-text-pri);
+  /* MUST resolve to the same stack as global.css (var(--app-font-stack-inter)) —
+     a hardcoded shorter stack made the resolved font-family change when the
+     async CSS landed, reflowing every text box (measured CLS on /blogs). */
+  font-family:var(--app-font-stack-inter);
+  line-height:1.5; /* must match global.css :root — otherwise the deferred full CSS
+                      reflows every line box after first paint → CLS */
+  text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased; color-scheme:dark;
+}
+html { overflow:hidden; }
+body {
+  min-height:100vh;
+  /* 与 global.css 同值：absolute 子元素（背景层等）的定位基准，首帧锁定防迟到位移 */
+  position:relative;
+  font-weight:var(--app-text-wght, 400);
+  font-variation-settings:'wght' var(--app-text-wght, 400);
+}
+/* 与 global.css 同值：移动端安全区（刘海屏）内边距——首帧锁定，防异步 CSS 到达时 body 上下留白跳变 */
+body {
+  padding-top:constant(safe-area-inset-top);
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:constant(safe-area-inset-bottom);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+
+/* Form controls do NOT inherit font by default (UA buttonface/Arial). Layout.css
+   (async) resets them to inherit later — mirror that here so text-bearing
+   buttons/inputs don't resize when the full CSS lands. */
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+/* 交互元素统一 border-box：<button> 的 UA 默认是 border-box，<a> 是
+   content-box；同一套 width:100% + padding 的卡片/菜单项（.mini-card、
+   .popup-item 等）会因此出现 a 比 button 宽出左右 padding 的错位。 */
+a, button, input, select, textarea, summary { box-sizing: border-box; }
+/* 控件排版与 global.css 同值（font-size:1em ≡ inherit，显式同值便于构建期校验）；
+   padding 首帧锁定——否则异步 CSS 到达时按钮尺寸跳变（CLS）。 */
+button {
+  font-size: 1em;
+  padding: 0.6em 1.2em;
+}
+
+/* ── 页面标题（friends/blogs 等共用；global.css 同值，首帧锁定防标题位移）── */
+.section-title { font-size:1.8em; margin:0 0 24px; color:var(--app-text-pri); border-bottom:2px solid transparent; padding-bottom:10px; }
+
+/* ── Global heading weight — matches global.css so deferred CSS can't rewrap text ── */
+h1, h2, h3, h4, h5, h6 {
+  font-variation-settings:'wght' var(--app-heading-wght, 570);
+  font-weight:600;
+}
+
+/* ── Shell ── */
+/* 页面根容器（flex 列布局）。与 global.css 同值：height 用 calc(var(--vh,1vh)*100)
+   （移动端视口修正；首帧 --vh 未注入时 fallback 100vh ≡ 原值）；width/margin/padding/
+   box-sizing/position/z-index 一并锁定——#app 是全站布局根基，异步 CSS 迟到必须零变化。 */
+#app {
+  display:flex; flex-direction:column;
+  width:100vw; height:calc(var(--vh, 1vh) * 100);
+  margin:0; padding:0;
+  padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+  box-sizing:border-box;
+  position:relative; z-index:1;
+}
+/* SVG sprite（body 级符号容器）：首帧必须隐藏，否则在文档流占位挤开 #app。
+   与 utilities.css 的 .u-svg-defs 同值（critical/异步两处一致，防首帧漂移）。 */
+.u-svg-defs { position:absolute; width:0; height:0; overflow:hidden; pointer-events:none; }
+#chr-bg-layer { position:fixed; inset:0; z-index:0; pointer-events:none; }
+/* 背景媒体首帧隐藏，layout-init.ts 在可解码后逐个淡入（图：decode，视频：loadeddata）。
+   防止扫描式加载与缓存刷新时的闪烁；完整规则与过渡在 global.css。 */
+#chr-bg-layer .bg-image,
+#chr-bg-layer .bg-video { opacity:0; }
+
+
+/* ── Materials (idle state) — bg + border only, NO box-shadow ──
+   Mirrors global.css .mtl-surface/.mtl-container idle rules (shadow arrives
+   with async CSS — paint-only, no layout shift). Kept variable-driven so
+   theme/settings overrides still apply. */
+.mtl-surface {
+  background: var(--comp-bg-glass);
+  border: 1px solid var(--border-color-blur);
+}
+.mtl-container {
+  background: var(--comp-bg-blur);
+  border: 1px solid var(--border-color-blur);
+}
+.mtl-inset {
+  background: var(--comp-bg-inset);
+  border: 1px solid var(--border-color);
+}
+
+
+/* ── Scrollbar (universal) — mirror global.css: default 15px→8px at async
+     CSS arrival reflows every centered container (measured CLS on desktop). ── */
+::-webkit-scrollbar { width:8px; height:8px; }
+::-webkit-scrollbar-corner { background:transparent; }
+::-webkit-scrollbar-thumb { background-color:color-mix(in srgb, var(--comp-text-sec) 50%, transparent); border-radius:9999px; }
+::-webkit-scrollbar-thumb:hover { background-color:color-mix(in srgb, var(--comp-text-pri) 50%, transparent); }
+::-webkit-scrollbar-track { background:transparent; }
+/* 轨道避开 fixed 顶栏：内容仍可滚到顶栏下方（沉浸式渐隐不变），
+   但滚动条轨道整体下移一个顶栏高度，滑块从顶栏下沿开始。
+   Chromium 支持 ::-webkit-scrollbar-track 的 margin（滑块 0/50/100% 位置等比）。 */
+.main-content::-webkit-scrollbar-track { margin-top:var(--nav-h); }
+.main-content.no-nav::-webkit-scrollbar-track { margin-top:0; }
+
+/* ── CornerButton shell ──
+   position:fixed must exist at first paint: without it the button is in-flow
+   (occupies ~50px at page bottom) until its async CSS lands → collapse shift.
+   Rest of the face (bg/border/shadow) arrives with async CSS — paint only. */
+.cb__btn {
+  position: fixed;
+  bottom: 30px;
+  width: 50px;
+  min-height: 50px;
+  max-height: 50px;
+  display: block;
+  box-sizing: border-box;
+}
+/* BTT idle = hidden at first paint (mirror CornerButton.astro): appears only
+   via .cb--btt-visible (JS, scroll > 300px). Hiding it in critical stops the
+   async CSS from switching the button's state when it lands → no shift. */
+.cb__btn.cb--btt {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(20px);
+}
+
+/* ── Nav header (fixed) ── */
+.nav-header {
+  position:fixed; top:0; left:0; right:0; z-index:9999;
+  height:var(--nav-h); box-sizing:border-box;
+}
+html.immersive .nav-header {
+  background:transparent; border-bottom:none;
+}
+.nav-content {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:0 2rem; height:100%; max-width:min(1400px + 20%,80% + 100px); margin:0 auto;
+}
+.main-content {
+  flex:1; overflow-y:auto; overflow-x:hidden;
+  padding-top:var(--nav-h); height:100vh; box-sizing:border-box;
+  position:relative; /* 与 global.css 同值：滚动容器的定位上下文，首帧锁定 */
+}
+/* 状态布局与 global.css 同值：no-nav（无导航页）去顶部留白、unscrollable 锁滚动——首帧即最终态 */
+.main-content.no-nav { padding-top:0; overflow:hidden; z-index:0; }
+.main-content.unscrollable { overflow:hidden; }
+.app-title { font-size:1.5rem; font-weight:bold; color:var(--app-text-pri); margin:0; }
+.nav-link, .nav-action-link { color:var(--app-text-sec); text-decoration:none;  border-radius:6px; }
+.nav-home-link {text-decoration:none;}
+.nav-link { padding:0.5rem 1rem; }
+.nav-links { display:flex; gap:2rem; }
+.nav-actions { margin-left:auto; display:flex; align-items:center; gap:0.75rem; }
+.nav-setting-btn, .nav-action-link {
+  background:transparent; border:none; color:var(--app-text-sec); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  width:40px; height:40px; border-radius:6px;
+}
+
+/* ── Nav: prevent content leakage ──
+   Items hidden by default, revealed by JS when full CSS is loaded.
+   Without these, settings-menu renders in-flow (all items visible),
+   both nav-link-full and nav-link-collapsed show side-by-side,
+   and menu-toggle shows both hamburger + close icons. */
+.nav-settings-menu { position:fixed; opacity:0; pointer-events:none }
+.nav-link-swap { position:relative; display:inline-flex; align-items:center; justify-content:center }
+.nav-link-full { display:inline-block }
+.nav-link-collapsed { position:absolute; max-width:0; opacity:0; overflow:hidden }
+.nav-close { display:none }
+.menu-toggle { display:none; background: none; border: none;  align-items: center;  justify-content: center;  width: 40px;  height: 40px;}
+.menu-toggle .menu-icon,
+.menu-toggle .close-icon { position:absolute }
+.menu-toggle .close-icon { opacity:0 }
+/* reading-header is hidden unless JS enables swap mode (article pages) */
+.reading-header { display:none }
+
+/* ── Links ── */
+/* 与 global.css 同值（accent-dark）：base 与 global 同层同值，迟到无变化；
+   裸 a 链接首帧即最终色（不再出现 accent→accent-dark 闪现）。 */
+a { color:var(--accent-readable, var(--accent-dark)); }
+
+/* ── Mobile (≤768px) ── */
+@media (max-width:768px) {
+  .nav-actions { gap:0.5rem; }
+  .app-title { font-size:1.2rem; }
+  /* Mobile: show hamburger, use text labels not icons */
+  .menu-toggle { display:flex; position:relative; }
+  .nav-link-collapsed { display:none; position:static }
+  /* Mobile nav links are off-screen overlay until opened */
+  .nav-links:not(.mobile-open) { position:fixed; top:0; left:0; right:0; bottom:0; opacity:0; transform:translateY(-100%); pointer-events:none }
+}

@@ -1,0 +1,105 @@
+---
+import '../themes/aurora/styles/components/corner-button.css';
+import type { TocItem } from '../utils/toc';
+import { getTranslation, getLocale } from '../utils/i18n';
+interface LinkItem { href: string; label: string }
+
+const locale = getLocale(Astro.locals);
+const t = (key: string) => getTranslation(locale, key);
+
+interface Props {
+  id: string;
+  template?: 'btt' | 'toc-list' | 'link-list' | 'menu';
+  side?: 'left' | 'right';
+  variant?: 'default' | 'primary';
+  capsule?: boolean;
+  capsuleWidth?: number;
+  closeOnBackdrop?: boolean;
+  items?: TocItem[];
+  links?: LinkItem[];
+  activeHref?: string;
+}
+const {
+  id, template = 'btt', side = 'right', variant = 'default',
+  capsule = false, capsuleWidth = 50,
+  closeOnBackdrop = true, items = [], links = [], activeHref = '',
+} = Astro.props as Props;
+
+const sideClass = side === 'left' ? 'cb--left' : 'cb--right';
+const isPrimary = variant === 'primary';
+const isBtt = template === 'btt';
+const isTocList = template === 'toc-list';
+const isLinkList = template === 'link-list';
+const isMenu = template === 'menu';
+---
+
+<div data-cb-root={id} class={`cb ${sideClass}`} data-cb-template={template} data-cb-close={String(closeOnBackdrop)}>
+  <div class="cb__backdrop" hidden></div>
+  <div class:list={['cb__btn', { 'cb--pri': isPrimary }, { 'cb--btt': isBtt }, { 'is-capsule': capsule }]} style={capsule ? `width:${capsuleWidth}px` : ''}>
+    <div class="cb__icons">
+      {isBtt && (
+        <button class="cb__slot" data-action="scrollToTop" title={t('misc.backToTop')} aria-label={t('misc.backToTop')}>
+          <svg class="cb__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </button>
+      )}
+      {isTocList && (
+        <button class="cb__slot" data-menu="toc-list" title={t('inblog.toc-title')} aria-label={t('inblog.toc-title')}>
+          <svg class="cb__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      )}
+      {isLinkList && (
+        <button class="cb__slot" data-menu="link-list" title={t('nav.menu')} aria-label={t('nav.menu')}>
+          <svg class="cb__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      )}
+      {isMenu && (<slot name="buttons" />)}
+    </div>
+    <div class="cb__content" hidden>
+      {isTocList && items.length > 0 && (
+        <ul data-menu="toc-list" class="cb__list" hidden>
+          {items.map((item: TocItem) => (
+            <li class:list={['cb__list-item', `cb__list-item--l${item.level}`]} data-toc-id={item.id}>
+              <a href={`#${item.id}`} class="cb__list-link" data-toc-id={item.id}><span class="cb__list-text">{item.text}</span></a>
+            </li>
+          ))}
+        </ul>
+      )}
+      {isLinkList && links.length > 0 && (
+        <ul data-menu="link-list" class="cb__list" hidden>
+          {links.map((l: LinkItem) => (
+            <li class:list={['cb__list-item', { 'cb--active': l.href === activeHref }]}>
+              <a href={l.href} class="cb__list-link"><span class="cb__list-text">{l.label}</span></a>
+            </li>
+          ))}
+        </ul>
+      )}
+      {isMenu && (<slot />)}
+    </div>
+  </div>
+</div>
+
+<script>
+  // Bootstrap: idle-load CornerButton logic after first paint.
+  let _cbMod: typeof import('../utils/cornerButtonCore') | null = null;
+
+  async function _cbEnsure() {
+    if (_cbMod) return _cbMod;
+    _cbMod = await import('../utils/cornerButtonCore');
+    _cbMod.initCornerButton(); // sets up listeners (once)
+    _cbMod.init();             // initial scan
+    return _cbMod;
+  }
+
+  if (typeof requestIdleCallback !== 'undefined') {
+    requestIdleCallback(() => _cbEnsure());
+  } else {
+    setTimeout(() => _cbEnsure(), 2000);
+  }
+
+  document.addEventListener('astro:page-load', async () => {
+    const mod = await _cbEnsure();
+    mod.init(); // re-scan DOM on every page load
+  });
+</script>
+
+

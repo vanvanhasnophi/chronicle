@@ -1,0 +1,19 @@
+{
+  "name": "@chronicle/gen",
+  "version": "3.1.1",
+  "private": true,
+  "description": "Chronicle Gen — content generation: Astro builds, post indexing",
+  "type": "module",
+  "bin": {
+    "chronicle-gen": "./bin/cli.mjs"
+  },
+  "scripts": {
+    "build": "node bin/cli.mjs build"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

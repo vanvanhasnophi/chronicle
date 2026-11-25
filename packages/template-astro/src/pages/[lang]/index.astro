@@ -1,0 +1,246 @@
+---
+import '../../themes/aurora/styles/pages/index.css';
+export const prerender = true;
+
+export async function getStaticPaths() {
+  return [{ params: { lang: "zh" } }, { params: { lang: "en" } }];
+}
+
+import Layout from "../../layouts/Layout.astro";
+import { getTranslation, getLocale } from "../../utils/i18n.ts";
+import { loadSiteSettings } from "../../utils/siteSettings";
+import CardStyleHomeDeck from "../../components/CardStyleHomeDeck.astro";
+import HomeCoverDeck from "../../components/HomeCoverDeck.astro";
+import BackToTop from "../../components/BackToTop.astro";
+import { resolveFeatureFlags } from "../../utils/featureFlags.ts";
+
+// Get locale from Astro.locals (set by middleware)
+const locale = getLocale(Astro.locals);
+const t = (key: string) => getTranslation(locale, key);
+const themePostPath = "";
+const metaDescription = t("home.metaDescription");
+
+const settings = await loadSiteSettings();
+const homepageMode = settings?.homepageMode || "cover";
+const featureFlags = resolveFeatureFlags(settings?.featureFlags || {});
+---
+
+<Layout
+  title={t("nav.home")}
+  settings={settings}
+  scrollable={homepageMode !== "cover"}
+  disableMainContentTransition={true}
+  meta={{ description: metaDescription }}
+>
+  {
+    homepageMode === "cover" && (
+      <div class="home-container home-container--cover">
+        <HomeCoverDeck siteName={settings?.siteName} siteDescription={settings?.siteDescription || ''} locale={locale} themePostPath={themePostPath} mode="cover" />
+      </div>
+    )
+  }
+
+  {
+    homepageMode === "split" && (
+      <div class="home-container home-container--split">
+        <div class="split-hero-stage" id="split-hero-stage">
+          <HomeCoverDeck siteName={settings?.siteName} siteDescription={settings?.siteDescription || ''} locale={locale} themePostPath={themePostPath} mode="split" />
+        </div>
+        <div class="split-cards-stage">
+          <CardStyleHomeDeck locale={locale} featureFlags={featureFlags} />
+        </div>
+        {/* 首屏向下滚动提示：fixed + z-index 高于卡片流，点击后把卡片流顶部
+            滚到顶栏下沿；滚动后由脚本淡出。 */}
+        <button class="scroll-hint" type="button" aria-label={t("home.scrollDown")}>
+          <svg class="scroll-hint__arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 10l8 4 8-4"/>
+          </svg>
+        </button>
+      </div>
+    )
+  }
+
+  {
+    homepageMode === "cards" && (
+      <div class="home-container home-container--cards">
+        <CardStyleHomeDeck locale={locale} featureFlags={featureFlags} />
+      </div>
+    )
+  }
+  <BackToTop />
+</Layout>
+
+
+
+<script type="module">
+  let homeEffectsController = null;
+  let homeNavigationController = null;
+  let pendingHomeFreeze = false;
+
+  function freezeHomeEffects() {
+    const hero = document.getElementById('split-hero');
+    const cards = document.querySelector('.split-cards-stage');
+    const hint = document.querySelector('.scroll-hint');
+
+    if (hint) {
+      hint.style.opacity = '';
+      hint.style.visibility = '';
+    }
+
+    if (hero) {
+      hero.style.filter = 'none';
+      hero.style.opacity = '1';
+      hero.style.transform = 'none';
+    }
+
+    if (cards) {
+      cards.style.filter = 'none';
+      cards.style.opacity = '1';
+      cards.style.transform = 'none';
+    }
+  }
+
+  function initHomeNavigationFreeze() {
+    if (homeNavigationController) {
+      homeNavigationController.abort();
+      homeNavigationController = null;
+    }
+
+    homeNavigationController = new AbortController();
+    const { signal } = homeNavigationController;
+
+    document.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest('a[href]');
+      if (!link) return;
+
+      const href = link.getAttribute('href') || '';
+      if (!href) return;
+      if (/^(mailto:|tel:|https?:\/\/|\/\/)/i.test(href)) return;
+      if (!href.startsWith('/')) return;
+
+      pendingHomeFreeze = true;
+    }, { capture: true, signal });
+  }
+
+  function stopHomeEffects() {
+    if (homeEffectsController) {
+      homeEffectsController.abort();
+      homeEffectsController = null;
+    }
+  }
+
+  function initSplitHeroCompression() {
+    const scroller = document.querySelector(".main-content");
+    const shell = document.querySelector(".home-container--split");
+    const stage = document.getElementById("split-hero-stage");
+    const hero = document.getElementById("split-hero");
+    const cards = document.querySelector(".split-cards-stage");
+    const hint = document.querySelector(".scroll-hint");
+    if (!scroller || !shell || !stage || !hero || !cards) return;
+
+    stopHomeEffects();
+    homeEffectsController = new AbortController();
+    const { signal } = homeEffectsController;
+
+    // 卡片流的滚动位移上限。
+    const CARD_LIFT_MAX = 80;
+
+    // 点击箭头：交给浏览器原生 scrollIntoView + CSS scroll-margin 对齐，
+    // 不在这里算 offsetTop / 顶栏高度，也不额外挂滚动逻辑。
+    // 对齐结果：滚动容器的 scroll-padding-top(=顶栏高) 把卡片顶到顶栏下沿，
+    // .split-cards-stage 的 scroll-margin-top 再抵消下面的入场位移 CARD_LIFT_MAX。
+    if (hint) {
+      hint.addEventListener("click", () => {
+        cards.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, { signal });
+    }
+
+    let ticking = false;
+
+    const update = () => {
+      if (signal.aborted) return;
+      ticking = false;
+
+      const isReduced = document.documentElement.getAttribute('data-perf') === 'reduced';
+      const vh = window.innerHeight || 900;
+      const range = Math.max(200, vh * 0.35);
+      let progress = Math.min(1, Math.max(0, scroller.scrollTop / range));
+      progress =
+        progress < 0.5
+          ? 2 * progress * progress
+          : -1 + (4 - 2 * progress) * progress;
+
+      // 滚动提示：一开始轻轻淡出，约 1/3 屏后完全隐藏（避免粘性 hero 上残留）。
+      if (hint) {
+        const hintOpacity = Math.max(0, 1 - progress * 3.2);
+        hint.style.opacity = `${hintOpacity}`;
+        // 淡到 0 后彻底移出命中/读屏/焦点树，避免留一个不可见的可点击按钮。
+        hint.style.visibility = hintOpacity > 0.05 ? "" : "hidden";
+      }
+
+      if (isReduced) {
+        // Light mode: only opacity + translate, no blur/scale
+        hero.style.filter = 'none';
+        hero.style.transform = 'none';
+        hero.style.opacity = `${1 - .9 * progress}`;
+        const lift = Math.round(progress * CARD_LIFT_MAX);
+        cards.style.transform = `translateY(-${lift}px)`;
+        cards.style.opacity = '1';
+        cards.style.filter = 'none';
+      } else {
+        const maxBlur = 8;
+        const blur = Math.round(progress * maxBlur);
+        const lift = Math.round(progress * CARD_LIFT_MAX);
+        hero.style.filter = `blur(${blur}px)`;
+        hero.style.opacity = `${1 - 0.06 * progress}`;
+        hero.style.transform = `scale(${1 - 0.04 * progress})`;
+        cards.style.transform = `translateY(-${lift}px)`;
+        // 卡片流回到折线下方后，不再需要“初始模糊 + 70% 透明”的退后感：
+        // 模糊只会在入场时糊一下，透明会让 hero 透过卡片显形。改为始终清晰、不透明。
+        cards.style.opacity = '1';
+        cards.style.filter = 'none';
+      }
+    };
+
+    const requestUpdate = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    };
+
+    // Attach to the correct scroller and ensure passive listeners for performance
+    scroller.addEventListener("scroll", requestUpdate, { passive: true, signal });
+    window.addEventListener("resize", requestUpdate, { passive: true, signal });
+    // kick off after a frame to ensure layout is stable
+    requestAnimationFrame(requestUpdate);
+
+    // Expose for perf toggle to trigger immediate visual update
+    window.__chronicleUpdateSplitHero = () => { ticking = false; requestUpdate(); };
+  }
+
+  // Run on initial load
+  // Delay initialization to ensure Layout has rendered main-content
+  document.addEventListener("DOMContentLoaded", () => {
+    initHomeNavigationFreeze();
+    initSplitHeroCompression();
+  });
+
+  // Re-run on page load if we're on the home page
+  document.addEventListener("astro:page-load", () => {
+    initHomeNavigationFreeze();
+    initSplitHeroCompression();
+  });
+
+  document.addEventListener('astro:after-swap', () => {
+    if (pendingHomeFreeze) {
+      freezeHomeEffects();
+      stopHomeEffects();
+      pendingHomeFreeze = false;
+    }
+    if (homeNavigationController) {
+      homeNavigationController.abort();
+      homeNavigationController = null;
+    }
+  });
+</script>

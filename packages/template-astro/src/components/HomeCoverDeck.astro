@@ -1,0 +1,33 @@
+---
+// 封面 = 自包含渲染单元：data/homepage-cover.html（站点覆盖）→ themes/aurora/default-cover.html（主题默认，?raw 打包）。
+// 约定：封面片段自带 <style>，随 set:html 注入 body → 首帧生效，不依赖 critical 覆盖（防 CLS）。
+// 占位符（统一替换）：{{siteTitle}} {{siteDescription}} {{themePostPath}} {{locale}}
+import '../themes/aurora/styles/components/home-cover-deck.css';
+import defaultCoverHtml from '../themes/aurora/default-cover.html?raw';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+const { locale, themePostPath, mode = 'cover', siteName, siteDescription } = Astro.props;
+const isSplit = mode === 'split';
+
+const dataDir = process.env.CHRONICLE_DATA_DIR || join(process.cwd(), '..', '..', 'data');
+
+const siteTitle = siteName || 'Chronicle';
+const siteDesc = siteDescription || 'A personal blog';
+
+// 站点覆盖优先，缺省用主题默认（构建期打包，免疫路径解析）
+const siteCoverPath = join(dataDir, 'homepage-cover.html');
+const raw = existsSync(siteCoverPath) ? readFileSync(siteCoverPath, 'utf-8') : defaultCoverHtml;
+
+const coverHtml = raw
+  ? raw
+      .replace(/\{\{siteTitle\}\}/g, siteTitle)
+      .replace(/\{\{siteDescription\}\}/g, siteDesc)
+      .replace(/\{\{themePostPath\}\}/g, themePostPath || '')
+      .replace(/\{\{locale\}\}/g, locale || '')
+  : '';
+---
+
+<div class:list={['home-cover-deck', isSplit ? 'home-cover-deck--split' : '']} id={isSplit ? 'split-hero' : undefined} data-locale={locale}>
+    <Fragment set:html={coverHtml} />
+</div>

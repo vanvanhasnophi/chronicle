@@ -1,0 +1,170 @@
+/* ── Critical tokens: dark + light theme fundamentals ────────────
+   Inlined in <head> via Layout.astro. Only first-paint-visible tokens.
+   No interaction states, no syntax highlighting, no scrollbar/form styles.
+
+   Full token set lives in global.css, loaded asynchronously.
+   Keep formulas IDENTICAL between this file and global.css —
+   otherwise the async load causes a visible color flash. */
+
+/* ═══ Dark theme (default) ═══ */
+:root {
+  /* Font */
+  --app-font-stack-inter: -apple-system, BlinkMacSystemFont,  'InterVariable', 'Inter', 'HarmonyOS Sans', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Pingfang SC', 'HarmonyOS Sans SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --app-font-stack: var(--app-font-stack-inter);
+  --backend-font-stack: var(--app-font-stack-inter);
+  --app-font-stack-serif: ui-serif, 'Noto Serif SC', 'STSongti-SC', 'STSong', 'Songti SC', 'SimSun', serif;
+  --app-font-stack-mono: 'Consolas', 'SF Mono', 'Menlo', 'Monaco', 'Ubuntu Mono', 'Courier New', monospace, var(--app-font-stack-inter);
+  --app-text-wght: 400;
+  /* 顶栏高度（fixed nav）：布局里所有"让出顶栏"的地方统一用它，移动端 50px。 */
+  --nav-h: 70px;
+  font-family: var(--app-font-stack);
+  color-scheme: dark;
+
+  /* Brand */
+  --accent-default: #10b981;
+  --accent-base: var(--accentColor, var(--accent-default));
+  --accent: var(--accent-base);
+  --accent-readable: color-mix(in srgb, var(--accent) 70%, #fff);
+  --accent-dark: color-mix(in srgb, var(--accent) 80%, #000);
+  --accent-bg: color-mix(in srgb, var(--accent) 15%, transparent);
+  --recommended-accent-text: #fff;
+  /* 以 --accent 作为背景时的前景色。深色主题的 accent 保持高亮 → 用近黑；
+     浅色主题的 accent 被 #2c2c2e 压暗 → 用白。 */
+  --text-on-accent: #111;
+  --featured: #ffd700;
+  --featured-bg: color-mix(in srgb, var(--featured) 15%, transparent);
+
+  /* ═══ Grayscale foundation (dark) ═══ */
+  --bg-base: #121212;
+  --bg-offset: #909090;
+  --fg-base: #f5f5f5;
+  --hl-offset: var(--bg-offset);
+  --overlay: #000;
+
+  /* Background hierarchy — color-mix(in srgb, var(--bg-offset) P%, var(--bg-base)) */
+  --app-bg-pri: var(--bg-base);
+  --app-bg-sec: color-mix(in srgb, var(--bg-offset) 11%, var(--bg-base));
+  --comp-bg: color-mix(in srgb, var(--bg-offset) 12%, var(--bg-base));
+  --comp-bg-alt: color-mix(in srgb, var(--bg-offset) 20%, var(--bg-base));
+  /* Inset material — recessed well, pushed toward black/white via --overlay */
+  --comp-bg-inset: color-mix(in srgb, var(--app-bg-pri) 78%, var(--overlay));
+
+  /* Transparency compensation — per-theme alpha knobs */
+  --blur-alpha: 90%;
+  --glass-alpha: 50%;
+
+  /* Glass opaque tier — lighter than comp-bg-hl, same inter-tier spacing */
+  --glass-opaque: color-mix(in srgb, var(--bg-offset) 47%, var(--bg-base));
+
+  /* Semi-transparent backgrounds */
+  --comp-bg-blur: color-mix(in srgb, var(--comp-bg) var(--blur-alpha), transparent);
+  --comp-bg-glass: color-mix(in srgb, var(--glass-opaque) var(--glass-alpha), transparent);
+
+  /* Transparent-background interaction overlays */
+  --hover: color-mix(in srgb, var(--bg-offset) 20%, transparent);
+  --active: color-mix(in srgb, var(--bg-offset) 24%, transparent);
+  --highlight: color-mix(in srgb, var(--hl-offset) 20%, transparent);
+
+  /* Foreground hierarchy — color-mix(in srgb, var(--bg-base) P%, var(--fg-base)) */
+  --app-text-pri: color-mix(in srgb, var(--bg-base) 9.3%, var(--fg-base));
+  --comp-text-pri: color-mix(in srgb, var(--bg-base) 14.5%, var(--fg-base));
+  --app-text-sec: color-mix(in srgb, var(--bg-base) 33.5%, var(--fg-base));
+  --comp-text-sec: color-mix(in srgb, var(--bg-base) 35.2%, var(--fg-base));
+
+  /* Borders */
+  --border-color: color-mix(in srgb, var(--app-text-sec) 20%, transparent);
+  --border-color-blur: color-mix(in srgb, var(--bg-offset) 20%, transparent);
+
+  /* Shadows */
+  --shadow-elev-1: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --comp-inset-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  /* Overlays */
+  --frontend-bg-overlay: var(--frontend-bg-overlay-dark, transparent);
+
+  color: var(--app-text-pri);
+  background-color: transparent;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 移动端顶栏 50px */
+@media (max-width: 768px) {
+  :root {
+    --nav-h: 50px;
+  }
+}
+
+/* ═══ Light theme ═══ */
+:root[data-theme="light"]:not(.focus) {
+  color-scheme: light;
+  --app-text-wght: 430;
+  --recommended-accent-text: #fff;
+  --text-on-accent: #fff;
+  --accent: color-mix(in oklch, var(--accent-base) 75%, #2c2c2e);
+  --accent-readable: color-mix(in oklch, var(--accent-base) 52%, #2c2c2e);
+
+  /* ═══ Grayscale foundation (light) ═══ */
+  --bg-base: #f9f9f9;
+  --bg-offset: #aaa;
+  --fg-base: #111111;
+  --hl-offset: var(--accent);
+  --overlay: #fff;
+
+  /* Design-different overrides */
+  --blur-alpha: 80%;
+  --glass-alpha: 30%;
+  --glass-opaque: color-mix(in srgb, var(--bg-offset) 10%, var(--bg-base));
+
+  --border-color-blur: color-mix(in srgb, var(--fg-base) 12%, transparent);
+
+  --featured: #c58f00;
+  --featured-bg: rgba(242, 234, 212, 0.9);
+
+  --shadow-elev-1: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --comp-inset-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+
+  --frontend-bg-overlay: var(--frontend-bg-overlay-light);
+
+  color: var(--app-text-pri);
+}
+
+/* ═══ System light (no explicit theme set) ═══ */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not(.focus) {
+    color-scheme: light;
+    --app-text-wght: 430;
+    --recommended-accent-text: #fff;
+    /* accent 必须与 :root[data-theme="light"] 同步压暗，否则 --text-on-accent
+       的白色会落在深色主题的高亮 accent 上（对比度只有 ~3.2:1）。
+       选择器特异性高于 global.css 的 :root，异步 CSS 到达后也不会被覆盖。 */
+    --accent: color-mix(in oklch, var(--accent-base) 75%, #2c2c2e);
+    --accent-readable: color-mix(in oklch, var(--accent-base) 52%, #2c2c2e);
+    --text-on-accent: #fff;
+
+    /* ═══ Grayscale foundation (light) ═══ */
+    --bg-base: #f9f9f9;
+    --bg-offset: #aaa;
+    --fg-base: #111111;
+    --hl-offset: var(--accent);
+    --overlay: #fff;
+
+    /* Design-different overrides */
+    --blur-alpha: 80%;
+    --glass-alpha: 30%;
+    --glass-opaque: color-mix(in srgb, var(--bg-offset) 10%, var(--bg-base));
+
+    --border-color-blur: color-mix(in srgb, var(--fg-base) 12%, transparent);
+
+    --featured: #c58f00;
+    --featured-bg: rgba(242, 234, 212, 0.9);
+
+    --shadow-elev-1: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --comp-inset-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+
+    --frontend-bg-overlay: var(--frontend-bg-overlay-light);
+
+    color: var(--app-text-pri);
+  }
+}

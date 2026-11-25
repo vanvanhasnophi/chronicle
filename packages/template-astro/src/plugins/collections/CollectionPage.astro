@@ -1,0 +1,356 @@
+---
+import './styles/collection.css';
+import Layout from "../../layouts/Layout.astro";
+import { withBase } from "../../utils/basePath";
+import collectionCritical from "./styles/critical.css?raw";
+import CollectionTreeNode from "./CollectionTreeNode.astro";
+import { getTranslation, getLocale } from "../../utils/i18n";
+import { loadSiteSettings } from "../../utils/siteSettings";
+import { dataSource } from "../../data";
+
+// 主板路由壳（pages/[lang]/collection.astro）负责 getStaticPaths 特性门控，
+// 本组件为插件注册的页面体（自含 Layout 包裹与数据读取）。
+
+const locale = getLocale(Astro.locals);
+const t = (key: string) => getTranslation(locale, key);
+const routePrefix = withBase(locale === "zh-CN" ? "/zh" : "/en");
+
+const settings = await loadSiteSettings();
+
+const metaDescription =
+  locale === "zh-CN"
+    ? "浏览 Chronicle 的合集页面，查看分组内容与关联文章。"
+    : "Browse Chronicle collections, grouped content, and related posts.";
+
+const slugify = (value: unknown) =>
+  String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const rawCollections = (dataSource.getCollections?.() as any) || [];
+const collectionSource: any[] = Array.isArray(rawCollections)
+  ? rawCollections
+  : Array.isArray(rawCollections?.collections)
+    ? rawCollections.collections
+    : [];
+
+const publishedPosts = dataSource.getPublishedPosts();
+const postTitles: Record<string, string> = {};
+const postTypes: Record<string, string> = {};
+for (const post of publishedPosts) {
+  const id = String(post.id);
+  postTitles[id] = String(post.title || "").trim();
+  postTypes[id] = String(post.type || "article").trim();
+}
+
+const usedSlugs = new Set<string>();
+const collections = collectionSource.map((collection: any, index: number) => {
+  const name = String(collection?.name || "").trim() || `Collection ${index + 1}`;
+  let slug = String(collection?.slug || "").trim() || slugify(name) || `collection-${index + 1}`;
+  const baseSlug = slug;
+  let suffix = 2;
+  while (usedSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
+  usedSlugs.add(slug);
+
+  let posts = 0;
+  let groups = 0;
+  const walk = (nodes: any[]) => {
+    if (!Array.isArray(nodes)) return;
+    for (const node of nodes) {
+      if (!node) continue;
+      if (node.type === "post" && node.id && postTitles[String(node.id)]) posts += 1;
+      if (node.type === "group") {
+        groups += 1;
+        walk(node.children);
+      }
+    }
+  };
+  const nodes = Array.isArray(collection?.nodes) ? collection.nodes : [];
+  walk(nodes);
+
+  return {
+    name,
+    description: String(collection?.description || "").trim(),
+    cover: String(collection?.cover || "").trim(),
+    slug,
+    panelId: `collection-${slug}`,
+    nodes,
+    posts,
+    groups,
+  };
+});
+---
+
+<Layout
+  title={t("nav.collection")}
+  settings={settings}
+  meta={{ description: metaDescription }}
+>
+  <Fragment slot="head"><style is:inline set:html={collectionCritical} /></Fragment>
+  <div class="collection-container">
+    <main class="collection-main">
+      <section class="layer-list" id="collection-list-layer">
+        <h1 class="section-title" tabindex="-1">{t("collection.title")}</h1>
+        <div
+          class="collections-grid"
+          id="collections-grid"
+          aria-label={t("collection.title")}
+        >
+          {collections.length ? collections.map((collection: any, index: number) => (
+            <a
+              class="collection-card-link"
+              href={`#${collection.panelId}`}
+              data-collection-id={collection.panelId}
+            >
+              <article class="post-card mtl-surface interactive interactive--hl interactive--motion collection-card">
+                <div
+                  class:list={["collection-card-cover", collection.cover ? "has-image" : "is-empty"]}
+                >
+                  {collection.cover ? (
+                    <img
+                      src={collection.cover}
+                      alt={collection.name}
+                      width="640"
+                      height="360"
+                      loading={index === 0 ? "eager" : "lazy"}
+                      decoding="async"
+                    />
+                  ) : null}
+                </div>
+                <div class="collection-card-content">
+                  <div class="collection-card-heading">
+                    <h3 class="collection-card-title">{collection.name}</h3>
+                    <span class="collection-card-meta">
+                      {t("collection.postsCount").replace("{count}", String(collection.posts))}
+                    </span>
+                  </div>
+                  {collection.description ? (
+                    <p class="collection-card-desc">{collection.description}</p>
+                  ) : null}
+                </div>
+              </article>
+            </a>
+          )) : (
+            <div class="collections-empty">{t("collection.empty")}</div>
+          )}
+        </div>
+      </section>
+
+      <div class="layer-detail" id="collection-detail-layer" hidden>
+        {collections.map((collection: any) => (
+          <section
+            class="collection-detail-panel"
+            id={collection.panelId}
+            data-name={collection.name}
+            data-slug={collection.slug}
+            data-cover={collection.cover}
+            hidden
+          >
+            <div class="detail-header">
+              <a class="back-btn" href="#">{t("collection.backToList")}</a>
+            </div>
+            <h2 class="collection-title" tabindex="-1">{collection.name}</h2>
+            {collection.description ? (
+              <p class="collection-desc">{collection.description}</p>
+            ) : null}
+            <div class="collection-tree">
+              {collection.nodes.length ? (
+                <ul>
+                  {collection.nodes.map((node: any) => (
+                    <CollectionTreeNode
+                      node={node}
+                      postTitles={postTitles}
+                      postTypes={postTypes}
+                      routePrefix={routePrefix}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <div class="collection-tree-empty">{t("collection.emptyCollection")}</div>
+              )}
+            </div>
+          </section>
+        ))}
+      </div>
+    </main>
+  </div>
+
+  <!-- Collection 专属临时背景层 -->
+  <div id="collection-temp-bg" class="collection-temp-bg">
+    <div class="collection-temp-bg-image"></div>
+    <div class="collection-temp-bg-overlay"></div>
+  </div>
+
+  <script>
+    (() => {
+      const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function createScope() {
+        const listeners = [];
+        return {
+          onEl(el, ev, fn, opts) {
+            el.addEventListener(ev, fn, opts);
+            listeners.push({ t: el, ev, fn, opts });
+          },
+          onWindow(ev, fn, opts) {
+            window.addEventListener(ev, fn, opts);
+            listeners.push({ t: window, ev, fn, opts });
+          },
+          destroy() {
+            listeners.forEach((l) => l.t.removeEventListener(l.ev, l.fn, l.opts));
+            listeners.length = 0;
+          },
+        };
+      }
+
+      let scope = null;
+      let listScrollY = 0;
+
+      function initCollectionPage() {
+        if (scope) scope.destroy();
+        scope = createScope();
+
+        const listLayer = document.getElementById("collection-list-layer");
+        const detailLayer = document.getElementById("collection-detail-layer");
+        const grid = document.getElementById("collections-grid");
+        const listTitle = listLayer?.querySelector(".section-title");
+        const tempBg = document.getElementById("collection-temp-bg");
+        const tempBgImage = tempBg?.querySelector(".collection-temp-bg-image");
+        const panels = Array.from(
+          document.querySelectorAll(".collection-detail-panel"),
+        );
+        if (!listLayer || !detailLayer || !grid || !tempBg) return;
+
+        listScrollY = 0;
+        // The pagehide handler may have hidden the layer; a bfcache restore must reset it.
+        tempBg.hidden = false;
+
+        const decodeHash = () => {
+          try {
+            return decodeURIComponent(location.hash.replace(/^#/, ""));
+          } catch {
+            return "";
+          }
+        };
+
+        const findPanel = (hash) =>
+          panels.find(
+            (panel) =>
+              panel.id === hash ||
+              panel.dataset.name === hash ||
+              panel.dataset.slug === hash,
+          );
+
+        const setBackground = (panel) => {
+          const cover = panel?.dataset.cover || "";
+          if (cover && tempBgImage) {
+            tempBgImage.style.backgroundImage = `url("${cover.replace(/"/g, "%22")}")`;
+            tempBg.classList.add("visible");
+          } else {
+            tempBg.classList.remove("visible");
+          }
+        };
+
+        const showList = (options = {}) => {
+          listLayer.hidden = false;
+          detailLayer.hidden = true;
+          panels.forEach((panel) => { panel.hidden = true; });
+          tempBg.classList.remove("visible");
+          if (options.focus) listTitle?.focus();
+          if (options.restore) {
+            window.scrollTo({ top: listScrollY, behavior: reduceMotion() ? "auto" : "smooth" });
+          }
+        };
+
+        const openPanel = (panel, options = {}) => {
+          if (detailLayer.hidden) listScrollY = window.scrollY;
+          listLayer.hidden = true;
+          detailLayer.hidden = false;
+          panels.forEach((item) => { item.hidden = item !== panel; });
+          setBackground(panel);
+
+          const nextUrl = `${location.pathname}${location.search}#${encodeURIComponent(panel.id)}`;
+          if (options.push) {
+            history.pushState({ collection: panel.id, fromList: true }, "", nextUrl);
+          } else {
+            history.replaceState({ collection: panel.id, fromList: false }, "", nextUrl);
+          }
+
+          if (options.focus) {
+            panel.querySelector(".collection-title")?.focus();
+            window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
+          }
+        };
+
+        const handleHash = (restore = false) => {
+          const hash = decodeHash();
+          const panel = hash ? findPanel(hash) : undefined;
+          if (panel) openPanel(panel, { push: false, focus: false });
+          else showList({ restore });
+        };
+
+        const showListFromDetail = () => {
+          if (history.state?.fromList) {
+            history.back();
+            return;
+          }
+          showList({ focus: true, restore: true });
+          history.pushState({}, "", `${location.pathname}${location.search}`);
+        };
+
+        scope.onEl(grid, "click", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const link = target?.closest(".collection-card-link");
+          if (!link) return;
+          const id = (link.getAttribute("href") || "").replace(/^#/, "");
+          const panel = panels.find((item) => item.id === id);
+          if (!panel) return;
+          event.preventDefault();
+          openPanel(panel, { push: true, focus: true });
+        });
+
+        scope.onEl(detailLayer, "click", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+
+          const back = target?.closest(".back-btn");
+          if (back) {
+            event.preventDefault();
+            showListFromDetail();
+            return;
+          }
+
+          const group = target?.closest(".group-header");
+          if (group) {
+            const children = group.parentElement?.querySelector(".children-container");
+            if (!children) return;
+            const expanded = group.getAttribute("aria-expanded") === "true";
+            group.setAttribute("aria-expanded", String(!expanded));
+            children.hidden = expanded;
+          }
+        });
+
+        scope.onWindow("popstate", () => handleHash(true));
+        scope.onWindow("hashchange", () => handleHash());
+        scope.onWindow("pagehide", () => { tempBg.hidden = true; });
+
+        handleHash();
+      }
+
+      document.addEventListener("astro:page-load", initCollectionPage);
+      if (document.readyState === "complete" || document.readyState === "interactive") {
+        initCollectionPage();
+      } else {
+        document.addEventListener("DOMContentLoaded", initCollectionPage, { once: true });
+      }
+
+      document.addEventListener("astro:before-swap", () => {
+        if (scope) {
+          scope.destroy();
+          scope = null;
+        }
+      });
+    })();
+  </script>
+</Layout>

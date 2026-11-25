@@ -1,0 +1,5 @@
+collections: []
+post:
+  collectionNav:
+    enabled: true
+    alwaysCollapsed: false

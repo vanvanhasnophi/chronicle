@@ -1,0 +1,143 @@
+---
+// FilePreviewModal.astro — drops-in for the deleted FilePreviewModal.vue.
+// chronicle-markdown.css (43KB) loaded on-demand via ?url to avoid bloating
+// the critical CSS bundle — every page includes this component via Layout.astro.
+import chronicleMarkdownCssUrl from '@chronicle/shared/src/styles/chronicle-markdown.css?url';
+---
+
+<div id="file-preview-root" data-state="idle" style="display:none" aria-hidden="true" data-css-url={chronicleMarkdownCssUrl}>
+  <!-- ═══ File / Audio / Video / Text / PDF mode ═══ -->
+  <div class="file-preview-overlay">
+    <div class="file-preview-container">
+      <header class="file-preview-header">
+        <h3 class="file-preview-title"></h3>
+        <div class="preview-header-actions">
+          <select class="encoding-select" style="display:none" aria-label="Text encoding">
+            <option value="utf-8">UTF-8</option>
+            <option value="gbk">GBK</option>
+            <option value="iso-8859-1">ISO-8859-1</option>
+            <option value="windows-1252">Windows-1252</option>
+          </select>
+          <a class="preview-action-btn" role="button" download target="_blank" rel="noopener" title="Download">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </a>
+          <button class="preview-action-btn" title="Close">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </header>
+      <main class="file-preview-body"></main>
+    </div>
+  </div>
+
+  <!-- ═══ Image mode ═══ -->
+  <div class="image-preview-overlay" style="display:none">
+    <div class="preview-header-actions u-fixed-corner">
+      <a class="preview-action-btn" role="button" download target="_blank" rel="noopener" title="Download">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </a>
+      <button class="preview-action-btn" title="Close">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="image-preview-container">
+      <img class="image-preview-content" draggable="false" />
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Bootstrap: lazy-load rendering on first use ──────────
+  let _fpOpen: Function | null = null;
+  let _fpLoading = false;
+  let _cssLoaded = false;
+
+  async function _fpEnsure() {
+    if (_fpOpen) return;
+    if (_fpLoading) return;
+    _fpLoading = true;
+    // Inject chronicle-markdown.css on first use (43KB, non-blocking)
+    if (!_cssLoaded) {
+      _cssLoaded = true;
+      const root = document.getElementById('file-preview-root');
+      const cssUrl = root?.dataset.cssUrl;
+      if (cssUrl) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = cssUrl;
+        document.head.appendChild(link);
+      }
+    }
+    const mod = await import('../utils/filePreviewCore');
+    _fpOpen = mod.open;
+    // expose globally for programmatic use
+    (window as any).__openFilePreview = _fpOpen;
+    (window as any).__closeFilePreview = mod.close;
+  }
+
+  // ├─ Soft navigation: reset bindings + re-inject preview CSS ─────
+  // │  View Transition swaps <head> so the on-demand <link> is lost;
+  // │  _cssLoaded stays true so _fpEnsure skips injection. Check DOM
+  // │  after swap and re-inject if the <link> is missing.
+  document.addEventListener('astro:before-swap', () => {
+    if (_fpOpen) import('../utils/filePreviewCore').then(m => m.resetBindings()).catch(() => {});
+  });
+  document.addEventListener('astro:after-swap', () => {
+    if (!_cssLoaded) return;
+    const root = document.getElementById('file-preview-root');
+    const cssUrl = root?.dataset.cssUrl;
+    if (cssUrl && !document.head.querySelector(`link[href="${cssUrl}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = cssUrl;
+      document.head.appendChild(link);
+    }
+  });
+
+  // Pre-warm on first user interaction
+  const _fpPreWarm = () => {
+    _fpEnsure();
+    ['mouseover','touchstart','keydown'].forEach(ev =>
+      document.removeEventListener(ev, _fpPreWarm, { capture: true }));
+  };
+  ['mouseover','touchstart','keydown'].forEach(ev =>
+    document.addEventListener(ev, _fpPreWarm, { capture: true, once: true }));
+
+  // Global API (available before module loads — queues the call)
+  (window as any).__openFilePreview = (opts: any) => {
+    _fpEnsure().then(() => _fpOpen!(opts));
+  };
+  (window as any).__closeFilePreview = () => {
+    (window as any).__closeFilePreview = () => {}; // noop until loaded
+  };
+
+  // File-card click delegation (always active, lightweight)
+  document.addEventListener('click', (e: Event) => {
+    const el = (e.target as HTMLElement).closest?.('.file-card') as HTMLElement | null;
+    if (!el || el.tagName === 'A') return;
+    e.preventDefault();
+    const url = el.getAttribute('data-url') || (el as any).dataset?.url || '';
+    const name = el.getAttribute('data-name') || (el as any).dataset?.name || '';
+    const hinted = el.getAttribute('data-type') || (el as any).dataset?.type || '';
+    // Link/Post type → navigate, not file preview
+    if (hinted === 'Link' || hinted === 'Post') {
+      window.open(url, '_blank', 'noopener');
+      return;
+    }
+    if (/^https?:\/\//i.test(url)) { window.open(url, '_blank', 'noopener'); return; }
+    if (/^mailto:/i.test(url)) { window.location.href = url; return; }
+    _fpEnsure().then(() => _fpOpen!({ url, title: name, type: hinted }));
+  });
+
+  // Image click delegation (.md-image in post content)
+  document.addEventListener('click', (e: Event) => {
+    const img = (e.target as HTMLElement).closest?.('img.md-image') as HTMLImageElement | null;
+    if (!img) return;
+    // Linked images (badges: `[![alt](img)](url)`) are plain links — following
+    // the href wins over opening the image viewer.
+    if (img.closest('a')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    _fpEnsure().then(() => _fpOpen!({ url: img.src, title: img.alt || '', type: 'image' }));
+  }, { capture: true });
+</script>

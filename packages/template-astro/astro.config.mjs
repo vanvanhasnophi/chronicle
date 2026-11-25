@@ -1,0 +1,814 @@
+import { defineConfig } from 'astro/config';
+import { readFileSync, existsSync, readdirSync, copyFileSync, mkdirSync, statSync, writeFileSync, rmSync, createReadStream } from 'fs';
+import { createHash } from 'crypto';
+import { fileURLToPath } from 'url';
+import { dirname, join, extname, parse, relative } from 'path';
+
+import icon from 'astro-icon';
+import YAML from 'yaml';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'));
+// Single source of truth for the template version: the root package.json.
+const rootPkg = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
+const VERSION = rootPkg.version || pkg.version;
+// Deploy base path: '/' for a domain root, '/repo/' for a GitHub Pages project
+// site. CI passes BASE_PATH; absolute links rendered by the template go through
+// src/utils/basePath.ts so they follow this value.
+const BASE_PATH = ('/' + (process.env.BASE_PATH || '/').replace(/^\/+|\/+$/g, '') + '/').replace(/^\/\/$/, '/');
+
+// ── Image formats to compress ─────────────────────────────
+const IMG_RE = /\.(jpg|jpeg|png|gif)$/i;
+
+// ── Background video guardrail ────────────────────────────
+// Videos are copied verbatim (sharp can't decode them), so an oversized source
+// lands on the CDN as-is. Warn (never fail) when a background video exceeds the
+// threshold — the author should compress it with `scripts/convert-video.mjs`.
+// statSync only — no ffmpeg dependency at build time.
+const BG_VIDEO_RE = /\.(mp4|webm|mov|ogg)$/i;
+const BG_VIDEO_MAX_MB = Number(process.env.CHRONICLE_BG_VIDEO_MAX_MB || 10);
+let _sharpMod = null;
+async function loadSharp() {
+  if (!_sharpMod) {
+    try { _sharpMod = (await import('sharp')).default; }
+    catch { console.warn('[astro] sharp not available — skipping image compression'); }
+  }
+  return _sharpMod;
+}
+
+const DATA_DIR = process.env.CHRONICLE_DATA_DIR || join(__dirname, '..', '..', 'data');
+
+// ── Full-text search index (build-time only) ───────────
+// data/ 是唯一数据源；full_index.json 只在构建时写入 dist，不进 data/。
+function readSiteConfig() {
+  try {
+    const siteYml = join(DATA_DIR, 'site.yml');
+    if (existsSync(siteYml)) return YAML.parse(readFileSync(siteYml, 'utf-8')) || {};
+  } catch {}
+  return {};
+}
+
+// Module-level site config (used by feature flags).
+const siteConfig = readSiteConfig();
+// ── Brand icons: directory-as-setting, like avatars ────────
+// Drop files into data/branding/ (favicon.svg, favicon-32.png, favicon.ico,
+// apple-touch-icon.png, icon-192.png, icon-512.png) and they are used as-is.
+// With appearance.useAvatarAsIcon, the avatar from data/avatar/ fills any slot
+// that has no explicit file.
+function brandIconType(href) {
+  const ext = extname(href).toLowerCase();
+  if (ext === '.svg') return 'image/svg+xml';
+  if (ext === '.ico') return 'image/x-icon';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.webp') return 'image/webp';
+  return 'image/png';
+}
+
+function resolveBrandIcons() {
+  const brandingDir = join(DATA_DIR, 'branding');
+  const avatarDir = join(DATA_DIR, 'avatar');
+  const custom = (file) => (existsSync(join(brandingDir, file)) ? `/branding/${file}` : '');
+
+  let avatar = '';
+  try {
+    const files = readdirSync(avatarDir)
+      .filter((file) => /\.(svg|png|jpe?g|webp|avif|gif)$/i.test(file) && !file.startsWith('.'));
+    if (files.length) avatar = `/data/avatar/${files[0]}`;
+  } catch { /* no avatar directory */ }
+
+  const useAvatar = (siteConfig.appearance?.useAvatarAsIcon === true || siteConfig.useAvatarAsIcon === true) && Boolean(avatar);
+  const avatarOr = (fallback) => (useAvatar ? avatar : fallback);
+
+  const svg = custom('favicon.svg');
+  const png = custom('favicon-32.png') || custom('favicon.png');
+  const ico = custom('favicon.ico');
+  const apple = custom('apple-touch-icon.png') || avatarOr('');
+  const icon192 = custom('icon-192.png') || avatarOr('/favicon-192.png');
+  const icon512 = custom('icon-512.png') || avatarOr('/favicon-512.png');
+
+  const primary = svg
+    ? { href: svg, type: 'image/svg+xml' }
+    : png
+      ? { href: png, type: brandIconType(png), sizes: '32x32' }
+      : ico
+        ? { href: ico, type: 'image/x-icon' }
+        : useAvatar
+          ? { href: avatar, type: brandIconType(avatar) }
+          : { href: '/favicon.svg', type: 'image/svg+xml' };
+
+  const pngLink = png
+    ? { href: png, type: brandIconType(png), sizes: '32x32' }
+    : useAvatar
+      ? { href: avatar, type: brandIconType(avatar), sizes: 'any' }
+      : { href: '/favicon-32.png', type: 'image/png', sizes: '32x32' };
+
+  const manifestIcons = [
+    { src: icon192, sizes: custom('icon-192.png') || !useAvatar ? '192x192' : 'any', type: brandIconType(icon192) },
+    { src: icon512, sizes: custom('icon-512.png') || !useAvatar ? '512x512' : 'any', type: brandIconType(icon512) },
+  ].filter((icon, index, list) => list.findIndex((other) => other.src === icon.src) === index);
+
+  return {
+    primary,
+    pngLink,
+    appleTouch: apple || '/apple-touch-icon.png',
+    manifestIcons,
+    themeColor: /^#[0-9a-fA-F]{6}$/.test(String(siteConfig.appearance?.accent || '')) ? siteConfig.appearance.accent : '#10b981',
+  };
+}
+
+const BRAND_ICONS = resolveBrandIcons();
+
+// Deploy-time origin (see README → Deployment).
+// CI sets SITE_URL; local dev falls back to localhost. Absolute links in
+// rss.xml / sitemap.xml / robots.txt come from here, so a production build
+// without this env var would ship localhost URLs.
+const SITE_URL = (process.env.SITE_URL || 'http://localhost:4321').trim().replace(/\/+$/, '');
+try {
+  const parsed = new URL(SITE_URL);
+  if (parsed.pathname !== '/' || parsed.search || parsed.hash) {
+    console.warn(`[chronicle] SITE_URL should be an origin only (no path), got: ${SITE_URL}`);
+  }
+} catch {
+  throw new Error(`[chronicle] SITE_URL is not a valid absolute URL: ${SITE_URL}`);
+}
+
+function isFullTextEnabled() {
+  const site = readSiteConfig();
+  if (site.search?.enabled === false) return false;
+  // Full-text search is opt-out — on by default (aligned with the schema).
+  return (site.search?.fullTextSearch ?? site.fullTextSearch ?? site.featureFlags?.fullTextSearch) !== false;
+}
+
+// Strip a `---` … `---` YAML frontmatter block; return the remaining body.
+function stripFrontmatter(content) {
+  const m = String(content || '').match(/^﻿?---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  return m ? content.slice(m[0].length) : content;
+}
+
+// Coarse markdown → plain text (sufficient for a search index; not a full render).
+function markdownToPlainText(md) {
+  return String(md || '')
+    .replace(/```[\s\S]*?```/g, ' ')          // code fences
+    .replace(/`([^`]+)`/g, '$1')              // inline code
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')    // images
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')  // links → text
+    .replace(/^#{1,6}\s+/gm, '')              // headings
+    .replace(/^\s*[-*+]\s+/gm, '')            // list bullets
+    .replace(/^\s*\d+\.\s+/gm, '')            // ordered list
+    .replace(/[*_~>]{1,3}/g, '')              // emphasis / blockquote markers
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export default defineConfig({
+  site: SITE_URL,
+  base: BASE_PATH,
+  output: 'static',
+  // Deferred prefetch — Astro's built-in `prefetch` config injects prefetch.js +
+  // preload-helper.js (~4 KiB) into the initial bundle, hurting FCP. Instead, we
+  // defer: a tiny custom prefetcher in Layout.astro activates after the page is
+  // idle (requestIdleCallback / 2s fallback), so the first paint is unaffected and
+  // subsequent navigations still benefit from pre-warmed pages.
+  integrations: [
+    // ── 插件注册清单生成（构建期）：样式严格跟插件走 ──
+    // 只 import「启用」的插件 manifest（读 site.yml featureFlags）——禁用/删除的插件
+    // manifest 不被 import → 组件/样式完全不进 bundle。生成 src/plugins/generated-registry.ts。
+    {
+      name: 'chronicle-plugin-registry',
+      hooks: {
+        'astro:config:setup': () => {
+          try {
+            const pluginsDir = join(__dirname, 'src', 'plugins');
+            // site.yml 配置（组内禁用判断需要——cfg 提升到 generate 顶层作用域）
+            const cfg = (() => {
+              try {
+                const siteYml = join(DATA_DIR, 'site.yml');
+                if (existsSync(siteYml)) return YAML.parse(readFileSync(siteYml, 'utf-8')) || {};
+              } catch { /* ignore */ }
+              return {};
+            })();
+            const lines = [
+              '// AUTO-GENERATED by chronicle-plugin-registry (astro.config) — 勿手改',
+              '// 仅 import 启用的插件 manifest：禁用/删除的插件组件与样式不进 bundle（样式跟插件）',
+              "import { registerPlugin } from './registry';",
+            ];
+
+            const localeImports = [];
+            const localeEntries = [];
+            for (const entry of readdirSync(pluginsDir, { withFileTypes: true })) {
+              if (!entry.isDirectory()) continue;
+              const mf = join(pluginsDir, entry.name, 'manifest.ts');
+              if (!existsSync(mf)) continue;
+              const src = readFileSync(mf, 'utf-8');
+              const ff = src.match(/featureFlag:\s*'([^']+)'/)?.[1];
+              // 禁用：组内开关键（site.yml 按插件分组——组名 = 插件目录名，键 = featureFlag 名）
+              if (ff && cfg[entry.name]?.[ff] === false) continue;
+              const v = 'm_' + entry.name.replace(/[^a-zA-Z0-9]/g, '_');
+              lines.push(`import ${v} from './${entry.name}/manifest'; registerPlugin(${v});`);
+
+              // Plugin translations live next to the plugin, not in src/locales.
+              // Only enabled plugins are imported, so a disabled plugin ships no copy.
+              const enLoc = join(pluginsDir, entry.name, 'locales', 'en.json');
+              const zhLoc = join(pluginsDir, entry.name, 'locales', 'zh-CN.json');
+              if (existsSync(enLoc) && existsSync(zhLoc)) {
+                localeImports.push(`import ${v}_en from './${entry.name}/locales/en.json';`);
+                localeImports.push(`import ${v}_zhCN from './${entry.name}/locales/zh-CN.json';`);
+                localeEntries.push(`  { en: ${v}_en, 'zh-CN': ${v}_zhCN },`);
+              }
+            }
+            lines.push('');
+            writeFileSync(join(__dirname, 'src', 'plugins', 'generated-registry.ts'), lines.join('\n'));
+
+            const localeLines = [
+              '// AUTO-GENERATED by chronicle-plugin-registry (astro.config) — do not edit',
+              '// Only enabled plugins contribute translations; core locales stay plugin-free.',
+              ...localeImports,
+              '',
+              'export const pluginLocales = [',
+              ...localeEntries,
+              '];',
+              '',
+            ];
+            writeFileSync(join(__dirname, 'src', 'plugins', 'generated-locales.ts'), localeLines.join('\n'));
+          } catch { /* ignore */ }
+        },
+      },
+    },
+    icon(),
+
+    // ── Defer Astro CSS: move component CSS off the critical path ──
+    // Astro bundles all component <style> blocks into /_astro/*.css <link> tags
+    // in <head>. These are render-blocking by default. This integration
+    // rewrites them to use media="print" + onload, so the browser paints with
+    // the inline skeleton CSS first, then applies the full bundle without
+    // blocking. A <noscript> fallback preserves styling with JS disabled.
+    (function chronicleDeferAstroCSS() {
+      return {
+        name: 'chronicle-defer-astro-css',
+        hooks: {
+          'astro:build:done': async ({ dir, pages }) => {
+            // Links carrying data-render-blocking stay on the critical path on
+            // purpose (see [lang]/post/[id].astro — chronicle-markdown.css owns the
+            // article typography metrics; deferring it reflowed the whole post after
+            // first paint → CLS ~0.8).
+            const CSS_LINK_RE = /<link\b[^>]*rel="stylesheet"[^>]*href="(\/_astro\/[^"]+\.css)"[^>]*>/gi;
+            const outDir = typeof dir === 'string' ? dir : (dir.pathname || fileURLToPath(dir));
+
+            for (const page of pages) {
+              let relPath = page.pathname || '';
+              if (!relPath) continue;
+
+              // Normalize: directory paths → index.html
+              if (relPath.endsWith('/')) relPath += 'index.html';
+              if (!relPath.endsWith('.html')) continue;
+
+              const filePath = join(outDir, relPath);
+              if (!existsSync(filePath)) continue;
+
+              let html = readFileSync(filePath, 'utf-8');
+              let count = 0;
+
+              html = html.replace(CSS_LINK_RE, (match, href) => {
+                // 豁免渲染阻塞样式：data-render-blocking 标记
+                if (match.includes('data-render-blocking')) return match;
+                count++;
+                return `<link rel="stylesheet" href="${href}" media="print" onload="this.onload=null;this.media='all'"><noscript><link rel="stylesheet" href="${href}"></noscript>`;
+              });
+
+              if (count > 0) {
+                writeFileSync(filePath, html);
+                console.log(`[chronicle-defer-css] ${relPath}: deferred ${count} CSS file(s)`);
+              }
+
+              // ── Base/global 镜像一致性校验 ────────────────────────
+              // base 与 global 同层同值：base（内联首帧）是 global（异步迟到）
+              // 的手写占位。若 base 漏镜像/值不同步，global 迟到会改变已渲染
+              // 布局（CLS）。构建期比对 base 是否 ⊇ global 层内的布局属性且
+              // 值一致——不一致仅告警（不 fail），提示同步 critical-base。
+              try {
+                const baseCss = readFileSync(join(__dirname, 'src', 'themes', 'aurora', 'styles', 'critical', 'critical-base.css'), 'utf-8');
+                const astroDir = join(outDir, '_astro');
+                const globals = readdirSync(astroDir).filter((f) => /^global\..+\.css$/.test(f));
+                for (const g of globals) {
+                  const gc = readFileSync(join(astroDir, g), 'utf-8');
+                  const lm = gc.match(/@layer\s+chr-global\s*\{([\s\S]*)\}/);
+                  if (!lm) continue;
+                  const LAYOUT_RE = /^(display|flex|flex-direction|flex-wrap|flex-grow|flex-shrink|flex-basis|grid|grid-template|grid-area|width|min-width|max-width|height|min-height|max-height|margin|margin-top|margin-right|margin-bottom|margin-left|padding|padding-top|padding-right|padding-bottom|padding-left|position|top|right|bottom|left|inset|z-index|float|gap|transform|zoom|font-size|line-height|box-sizing|overflow|overflow-x|overflow-y|object-fit|object-position|order|align-items|justify-content|aspect-ratio|white-space|vertical-align)$/;
+                  // 已知豁免（base 刻意不镜像，无 CLS 风险）：
+                  //  - h1..h6 裸元素：页面元素都有 class 覆盖（.cover-title/.section-title 等）
+                  //  - :hover/:active 交互态：交互发生时 CSS 早已到达
+                  //  - #chr-bg-layer 背景视觉层（容器 fixed 已脱离流，子层迟到只影响铺满）
+                  //  - .font-* 工具类 / .file-preview-body（后台）/ .math-tooltip（JS 动态浮层）/
+                  //    .float-btn（页面型 critical 已覆盖）
+                  const EXEMPT = (sel) =>
+                    /^h[1-6](\s*,|$)/.test(sel) || /:(hover|active)/.test(sel) ||
+                    sel.includes('#chr-bg-layer') ||
+                    /(^|,) ?\.(font-|file-preview-body|math-tooltip|float-btn)/.test(sel);
+                  // 选择器规范化：剥注释 → 剥 @media 块（只比顶层规则，避免 media 内
+                  // 移动端值覆盖顶层值）→ 拆逗号 → 压缩空白。精确匹配（不做"含于"
+                  // 宽松匹配，避免注释文本/前缀选择器误命中）。
+                  const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
+                  const stripMedia = (s) => {
+                    let out = '', i = 0;
+                    while (i < s.length) {
+                      if (s.startsWith('@media', i)) {
+                        const open = s.indexOf('{', i);
+                        let depth = 0, j = open;
+                        while (j < s.length) {
+                          if (s[j] === '{') depth++;
+                          else if (s[j] === '}') { depth--; if (depth === 0) break; }
+                          j++;
+                        }
+                        i = j + 1;
+                      } else {
+                        out += s[i];
+                        i++;
+                      }
+                    }
+                    return out;
+                  };
+                  const normSel = (s) => s.replace(/\s+/g, ' ').trim();
+                  const normVal = (s) => s.replace(/\s+/g, ' ').trim().replace(/^0\./, '.');
+                  const parseSelProps = (css) => {
+                    const map = new Map(); // normSel -> {prop: value}（同选择器多条规则合并，后者覆盖）
+                    const re = /([^{}]+)\{([^}]*)\}/g;
+                    let m;
+                    while ((m = re.exec(stripMedia(stripComments(css))))) {
+                      const body = m[2];
+                      if (/^@/.test(m[1].trim())) continue;
+                      const props = {};
+                      for (const d of body.split(';')) {
+                        if (!d.includes(':')) continue;
+                        const p = d.split(':')[0].trim();
+                        const v = d.slice(d.indexOf(':') + 1).trim();
+                        if (LAYOUT_RE.test(p)) props[p] = normVal(v);
+                      }
+                      if (Object.keys(props).length === 0) continue;
+                      for (const part of m[1].split(',')) {
+                        const s = normSel(part);
+                        if (!s) continue;
+                        const prev = map.get(s) || {};
+                        map.set(s, { ...prev, ...props });
+                      }
+                    }
+                    return map;
+                  };
+                  const baseMap = parseSelProps(baseCss);
+                  const globalLayer = stripMedia(stripComments(lm[1]));
+                  const warnList = [];
+                  const selBody = /([^{}]+)\{([^}]*)\}/g;
+                  let sm;
+                  while ((sm = selBody.exec(globalLayer))) {
+                    const rawSel = sm[1].trim();
+                    if (/^@/.test(rawSel)) continue;
+                    const gProps = {};
+                    for (const d of sm[2].split(';')) {
+                      if (!d.includes(':')) continue;
+                      const p = d.split(':')[0].trim();
+                      const v = d.slice(d.indexOf(':') + 1).trim();
+                      if (LAYOUT_RE.test(p)) gProps[p] = normVal(v);
+                    }
+                    if (Object.keys(gProps).length === 0) continue;
+                    for (const part of rawSel.split(',')) {
+                      const s = normSel(part);
+                      if (!s || EXEMPT(s)) continue;
+                      const bProps = baseMap.get(s);
+                      if (!bProps) {
+                        warnList.push(`${s} → ${Object.keys(gProps).join(',')}（base 未镜像）`);
+                        continue;
+                      }
+                      for (const [p, v] of Object.entries(gProps)) {
+                        if (bProps[p] === undefined) warnList.push(`${s} ${p}（base 未镜像）`);
+                        else if (bProps[p] !== v) warnList.push(`${s} ${p}: base=${bProps[p]} global=${v}`);
+                      }
+                    }
+                  }
+                  if (warnList.length > 0) {
+                    console.warn(`[chronicle-base-sync] ${relPath}: ${warnList.length} 处 base 与 global 布局不同步（首帧 CLS 风险）:`);
+                    for (const w of warnList.slice(0, 12)) console.warn(`    - ${w}`);
+                  } else {
+                    console.log(`[chronicle-base-sync] ${relPath}: base ⊇ global 布局属性，同值 ✓`);
+                  }
+                  break;
+                }
+              } catch {}
+
+              // ── Minify inlined critical CSS ──
+              // <style> blocks emitted via set:html bypass Vite's cssMinify
+              // pipeline (only /_astro/*.css bundles get minified), so the raw
+              // source with comments + indentation shipped to the parser. Run
+              // them through the same esbuild engine here — ~30% smaller before
+              // the first paint, zero semantic change.
+              const STYLE_RE = /<style([^>]*)>([\s\S]*?)<\/style>/g;
+              let sm;
+              const styleParts = [];
+              let styleLast = 0;
+              while ((sm = STYLE_RE.exec(html))) {
+                styleParts.push(html.slice(styleLast, sm.index));
+                try {
+                  const { transform: minifyInlineCss } = await import('esbuild');
+                  const min = await minifyInlineCss(sm[2], { loader: 'css', minify: true });
+                  if (min.code && min.code.length < sm[2].length) {
+                    styleParts.push(`<style${sm[1]}>${min.code}</style>`);
+                  } else {
+                    styleParts.push(sm[0]);
+                  }
+                } catch {
+                  styleParts.push(sm[0]);
+                }
+                styleLast = sm.index + sm[0].length;
+              }
+              if (styleParts.length > 0) {
+                const minifiedHtml = styleParts.join('') + html.slice(styleLast);
+                if (minifiedHtml.length < html.length) {
+                  html = minifiedHtml;
+                  writeFileSync(filePath, html);
+                }
+              }
+            }
+          },
+        },
+      };
+    })(),
+    (function chroniclePruneUnreferencedAssets() {
+      // Post-build asset GC: delete dist/assets files (originals + webp/avif
+      // variants) whose base filename appears in NO built file. References are
+      // already resolved in the output (HTML img/picture/srcset, JSON embeds,
+      // CSS url()), so a conservative "does base.ext appear anywhere" scan is
+      // enough. Kept per-base: if any of the trio is referenced, all are kept.
+      return {
+        name: 'chronicle-prune-unreferenced-assets',
+        hooks: {
+          'astro:build:done': async ({ dir }) => {
+            const outDir = typeof dir === 'string' ? dir : (dir.pathname || fileURLToPath(dir));
+            const assetsDir = join(outDir, 'assets');
+            if (!existsSync(assetsDir)) return;
+            const chunks = [];
+            function collect(dir2) {
+              for (const e of readdirSync(dir2, { withFileTypes: true })) {
+                const p = join(dir2, e.name);
+                if (e.isDirectory()) { if (e.name !== 'assets') collect(p); continue; }
+                const ext = extname(e.name).toLowerCase();
+                if (!['.html', '.js', '.json', '.css', '.webmanifest', '.xml'].includes(ext)) continue;
+                try { chunks.push(readFileSync(p, 'utf8')); } catch {}
+              }
+            }
+            collect(outDir);
+            const blob = chunks.join('\n');
+            const seen = new Set();
+            let removed = 0, kept = 0;
+            for (const e of readdirSync(assetsDir)) {
+              if (e.startsWith('.')) continue;
+              const base = parse(e).name;
+              if (seen.has(base)) continue;
+              seen.add(base);
+              const trio = readdirSync(assetsDir).filter((f) => parse(f).name === base);
+              if (trio.some((f) => blob.includes(f))) { kept++; continue; }
+              for (const f of trio) { try { rmSync(join(assetsDir, f), { force: true }); } catch {} }
+              removed++;
+            }
+            console.log(`[chronicle-prune-assets] removed ${removed} unreferenced asset group(s), kept ${kept}`);
+          },
+        },
+      };
+    })(),
+  ],
+
+  server: { port: 4321 },
+  vite: {
+    build: { cssMinify: 'esbuild' },
+    resolve: {
+      alias: {
+        '@chronicle/shared': join(__dirname, '..', 'shared'),
+      },
+    },
+    define: {
+      __VERSION__: JSON.stringify(VERSION),
+    __BRAND_ICONS__: JSON.stringify(BRAND_ICONS),
+      __YEAR__: new Date().getFullYear(),
+      'process.env.DATA_SOURCE': JSON.stringify(process.env.DATA_SOURCE || 'local'),
+      'process.env.CHRONICLE_DATA_DIR': JSON.stringify(process.env.CHRONICLE_DATA_DIR || ''),
+    },
+    optimizeDeps: {
+      exclude: ['astro-icon'],
+    },
+    plugins: [
+
+      // ── Dev-only data assets ──
+      // Production copies data/assets → dist/assets in astro:build:done, but the
+      // dev server has no such copy. Serve /assets/* from data/assets so covers,
+      // avatars and post images resolve identically in `astro dev`.
+      (function chronicleDevDataAssets() {
+        return {
+          name: 'chronicle-dev-data-assets',
+          apply: 'serve',
+          configureServer(server) {
+            const assetRoot = join(DATA_DIR, 'assets');
+            server.middlewares.use('/assets', (req, res, next) => {
+              try {
+                const pathname = decodeURIComponent((req.url || '').split('?')[0]);
+                const filePath = join(assetRoot, pathname);
+                if (!filePath.startsWith(assetRoot + (process.platform === 'win32' ? '\\' : '/'))) return next();
+                if (!existsSync(filePath) || !statSync(filePath).isFile()) return next();
+                const types = {
+                  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                  '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif',
+                  '.svg': 'image/svg+xml',
+                };
+                res.setHeader('Content-Type', types[extname(filePath).toLowerCase()] || 'application/octet-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                createReadStream(filePath).pipe(res);
+              } catch {
+                next();
+              }
+            });
+          },
+        };
+      })(),
+
+      // ── Build cache 根治：每次构建强制全量新鲜输出 ──
+      // Astro 增量输出会复用旧 dist 产物（改 critical/manifest 后 HTML 不重写 → 产物过期，
+      // 必须手动 rm -rf dist .astro）。build:start 显式清理两者，保证「构建 = 当前源码」。
+      // 图片压缩产物在 node_modules/.cache/chronicle-images（sha256 键控，dist 之外）——
+      // 清理 dist 不影响：命中缓存只拷贝不重压，源图未变不会重新压缩。
+      (function chronicleFreshBuild() {
+        return {
+          name: 'chronicle-fresh-build',
+          hooks: {
+            'astro:build:start': async ({ logger }) => {
+              for (const dir of ['dist', '.astro']) {
+                const p = join(__dirname, dir);
+                if (existsSync(p)) rmSync(p, { recursive: true, force: true });
+              }
+              logger.info('fresh build: cleared dist/.astro');
+            },
+          },
+        };
+      })(),
+
+      // ── Asset pipeline: copy originals + generate WebP/AVIF ──
+      // Caching: content-hash based — only recompress when source changes.
+      (function assetPipelinePlugin() {
+        let _cache = null;
+        // Persistent variant store — lives OUTSIDE dist (Astro wipes dist between
+        // environment builds, so variants written there get deleted mid-build and
+        // every image re-encodes on every build; and in CI it must survive via the
+        // node_modules cache). Mirrors the dist tree under node_modules/.cache/.
+        const IMAGE_CACHE_DIR = join(__dirname, 'node_modules', '.cache', 'chronicle-images');
+        const cacheFile = join(IMAGE_CACHE_DIR, 'cache.json');
+
+        function loadCache() {
+          if (_cache) return _cache;
+          try { _cache = JSON.parse(readFileSync(cacheFile, 'utf-8')); }
+          catch { _cache = {}; }
+          return _cache;
+        }
+        function saveCache() {
+          if (!_cache) return;
+          try { mkdirSync(IMAGE_CACHE_DIR, { recursive: true }); } catch {}
+          try { writeFileSync(cacheFile, JSON.stringify(_cache)); } catch {}
+        }
+
+        /**
+         * Warn when a background video in data/background/ exceeds the size
+         * threshold. Reads only file stats — no ffmpeg, no re-reading content.
+         */
+        function warnOversizedBackgroundVideo() {
+          const bgDir = join(DATA_DIR, 'background');
+          if (!existsSync(bgDir)) return;
+          let vids;
+          try { vids = readdirSync(bgDir).filter((f) => BG_VIDEO_RE.test(f) && !f.startsWith('.')); } catch { return; }
+          for (const name of vids) {
+            let size = 0;
+            try { size = statSync(join(bgDir, name)).size; } catch { continue; }
+            const mb = size / (1024 * 1024);
+            if (mb > BG_VIDEO_MAX_MB) {
+              console.warn(
+                `[chronicle-asset-pipeline] ⚠️  background video "${name}" is ${mb.toFixed(1)} MB (limit ${BG_VIDEO_MAX_MB} MB). ` +
+                `Compress it with: node scripts/convert-video.mjs compress data/background/${name}`
+              );
+            }
+          }
+        }
+
+        /**
+         * Build the body-inclusive search index from the light index.
+         * Shared by the production closeBundle hook and the dev middleware so
+         * `astro dev` serves the same /posts/full_index.json the client expects.
+         */
+        function buildFullIndex(entries) {
+          const postsDir = join(DATA_DIR, 'posts');
+          const fullIndex = [];
+          for (const entry of entries) {
+            if (entry.status !== 'published') continue;
+            const mdPath = join(postsDir, entry.id, 'index.md');
+            if (!existsSync(mdPath)) continue;
+            const body = markdownToPlainText(stripFrontmatter(readFileSync(mdPath, 'utf-8')));
+            fullIndex.push({
+              id: entry.id,
+              title: entry.title || '',
+              date: entry.date || '',
+              summary: entry.summary || '',
+              tags: entry.tags || [],
+              body,
+            });
+          }
+          return fullIndex;
+        }
+
+        return {
+          name: 'chronicle-asset-pipeline',
+          enforce: 'post',
+
+          // Astro dev never runs closeBundle, so the client-fetched search
+          // indexes (/posts/index.json, /posts/full_index.json) would 404 —
+          // the tag cloud stays empty and full-text search silently falls back
+          // to nothing. Serve both from data/ in dev with the same shape the
+          // build writes to dist/.
+          configureServer(server) {
+            server.middlewares.use((req, res, next) => {
+              let pathname = '';
+              try { pathname = new URL(req.url || '/', 'http://localhost').pathname; } catch { return next(); }
+              if (pathname !== '/posts/index.json' && pathname !== '/posts/full_index.json') return next();
+              try {
+                const indexSrc = join(DATA_DIR, 'posts', 'index.json');
+                if (!existsSync(indexSrc)) { res.statusCode = 404; res.end('Not found'); return; }
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                res.setHeader('Cache-Control', 'no-store');
+                if (pathname === '/posts/index.json') {
+                  res.end(readFileSync(indexSrc, 'utf-8'));
+                  return;
+                }
+                const rawIndex = JSON.parse(readFileSync(indexSrc, 'utf-8'));
+                const entries = Array.isArray(rawIndex)
+                  ? rawIndex
+                  : Object.entries(rawIndex).map(([id, v]) => ({ id, ...v }));
+                res.end(JSON.stringify(buildFullIndex(entries)));
+              } catch (e) {
+                res.statusCode = 500;
+                res.end('Failed to build search index');
+              }
+            });
+          },
+
+          async closeBundle() {
+            const sharp = await loadSharp();
+            const distDir = join(__dirname, 'dist');
+            const cache = loadCache();
+            let hits = 0, misses = 0;
+
+            /**
+             * Copy a directory tree to dist, skipping .md and hidden files.
+             * For images, also generate .webp + .avif variants.
+             *
+             * Variants are written to the PERSISTENT cache dir (IMAGE_CACHE_DIR,
+             * mirrors the dist tree) and then copied into dist. Cache hits are
+             * judged against the persistent copies, so a mid-build dist wipe or a
+             * fresh CI checkout never forces recompression: on hit we only copy.
+             */
+            async function syncDir(srcDir, destDir, opts = {}) {
+              const { webpQuality = 80, avifQuality = 55, aggressive = false } = opts;
+              if (!existsSync(srcDir)) return;
+              const rel = relative(distDir, destDir) || '.';
+              for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
+                const name = entry.name;
+                if (name.startsWith('.') || name.endsWith('.md') || name === 'index.json') continue;
+                const src = join(srcDir, name);
+                if (entry.isDirectory()) {
+                  await syncDir(src, join(destDir, name), opts);
+                } else {
+                  mkdirSync(destDir, { recursive: true });
+                  try { copyFileSync(src, join(destDir, name)); } catch (_) {}
+
+                  if (!sharp || !IMG_RE.test(name)) continue;
+                  const base = parse(name).name;
+                  const destWebp = join(destDir, `${base}.webp`);
+                  const destAvif = join(destDir, `${base}.avif`);
+                  const persistDir = join(IMAGE_CACHE_DIR, rel);
+                  const persistWebp = join(persistDir, `${base}.webp`);
+                  const persistAvif = join(persistDir, `${base}.avif`);
+
+                  // Content-hash cache key
+                  const hash = createHash('sha256').update(readFileSync(src)).digest('hex');
+
+                  // Cache hit: source unchanged AND persistent variants exist → copy into dist
+                  if (cache[src] === hash && existsSync(persistWebp) && existsSync(persistAvif)) {
+                    try { copyFileSync(persistWebp, destWebp); } catch (_) {}
+                    try { copyFileSync(persistAvif, destAvif); } catch (_) {}
+                    hits++;
+                    continue;
+                  }
+
+                  misses++;
+                  mkdirSync(persistDir, { recursive: true });
+                  const effort = aggressive ? 6 : 4;
+                  try { await sharp(src).webp({ quality: webpQuality, effort }).toFile(persistWebp); } catch (_) {}
+                  try { await sharp(src).avif({ quality: avifQuality, effort }).toFile(persistAvif); } catch (_) {}
+                  try { copyFileSync(persistWebp, destWebp); } catch (_) {}
+                  try { copyFileSync(persistAvif, destAvif); } catch (_) {}
+                  cache[src] = hash;
+                }
+              }
+            }
+
+            // ── Public assets ────────────────────────────────
+            await syncDir(join(DATA_DIR, 'assets'), join(distDir, 'assets'));
+
+            // ── Post attachments ─────────────────────────────
+            const postsDir = join(DATA_DIR, 'posts');
+            if (existsSync(postsDir)) {
+              for (const slug of readdirSync(postsDir)) {
+                const d = join(postsDir, slug);
+                if (slug === 'index.json' || !existsSync(d) || !statSync(d).isDirectory()) continue;
+                await syncDir(d, join(distDir, 'post_attachment', slug));
+              }
+            }
+
+            // ── Search indexes (exposed to client; zero-inline) ──
+            // posts/index.json (lightweight) copied verbatim so the client can
+            // fetch it. full_index.json (body-inclusive) generated only when
+            // fullTextSearch is enabled.
+            const indexSrc = join(postsDir, 'index.json');
+            if (existsSync(indexSrc)) {
+              const indexDest = join(distDir, 'posts', 'index.json');
+              mkdirSync(dirname(indexDest), { recursive: true });
+              copyFileSync(indexSrc, indexDest);
+            }
+
+            if (isFullTextEnabled()) {
+              try {
+                const rawIndex = JSON.parse(readFileSync(indexSrc, 'utf-8'));
+                // index.json is object-keyed ({ "<id>": {...} }); normalise both forms.
+                const entries = Array.isArray(rawIndex)
+                  ? rawIndex
+                  : Object.entries(rawIndex).map(([id, v]) => ({ id, ...v }));
+                const fullIndex = buildFullIndex(entries);
+                const fullDest = join(distDir, 'posts', 'full_index.json');
+                mkdirSync(dirname(fullDest), { recursive: true });
+                writeFileSync(fullDest, JSON.stringify(fullIndex));
+                console.log(`[chronicle-search] full_index.json: ${fullIndex.length} posts`);
+              } catch (e) {
+                console.warn('[chronicle-search] failed to generate full_index.json:', e);
+              }
+            }
+
+            // ── About attachments ────────────────────────────
+            await syncDir(join(DATA_DIR, '__about__'), join(distDir, 'about'), { aggressive: true, webpQuality: 65, avifQuality: 40 });
+
+            // ── Background + Avatar (aggressive, display-size aware) ──
+            warnOversizedBackgroundVideo();
+            await syncDir(join(DATA_DIR, 'background'), join(distDir, 'data', 'background'), { aggressive: true, webpQuality: 60, avifQuality: 35 });
+            await syncDir(join(DATA_DIR, 'avatar'), join(distDir, 'data', 'avatar'), { aggressive: true, webpQuality: 50, avifQuality: 30 });
+
+            // ── Branding ─────────────────────────────────────
+            await syncDir(join(DATA_DIR, 'branding'), join(distDir, 'branding'));
+
+            // site.webmanifest reflects the resolved icons (branding/ or avatar).
+            try {
+              const siteName = String(siteConfig.homepage?.siteName || 'Chronicle Aurora').trim();
+              const manifest = {
+                name: siteName,
+                short_name: siteName.length <= 12 ? siteName : (siteName.split(/\s+/)[0] || siteName).slice(0, 12),
+                description: String(siteConfig.homepage?.siteDescription || '').trim(),
+                start_url: './',
+                scope: './',
+                display: 'standalone',
+                background_color: '#0a0c10',
+                theme_color: BRAND_ICONS.themeColor,
+                icons: BRAND_ICONS.manifestIcons.map((icon) => ({
+                  src: String(icon.src).replace(/^\/+/, ''),
+                  sizes: icon.sizes,
+                  type: icon.type,
+                })),
+              };
+              writeFileSync(join(distDir, 'site.webmanifest'), JSON.stringify(manifest, null, 2) + '\n');
+            } catch (error) {
+              console.warn('[chronicle-brand-manifest] could not write site.webmanifest:', error.message);
+            }            saveCache();
+            if (sharp) console.log(`[chronicle-asset-pipeline] ${hits} hits, ${misses} misses`);
+          },
+        };
+      })(),
+
+      (function excludeArchivePlugin() {
+        const archiveMarker = '/src/archive/';
+        return {
+          name: 'exclude-archive',
+          enforce: 'pre',
+          load(id) {
+            if (!id) return null;
+            try {
+              const normalized = id.replace(/\\\\/g, '/');
+              if (normalized.includes(archiveMarker) || normalized.endsWith('/src/archive')) {
+                return 'export default {}';
+              }
+            } catch (e) { return null; }
+            return null;
+          }
+        };
+      })(),
+
+    ]
+  }
+});

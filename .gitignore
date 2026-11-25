@@ -1,0 +1,48 @@
+# OS
+.DS_Store
+_MACOSX/*
+
+# IDE
+.vscode/*
+.cursor/*
+.joycode/*
+
+# Dependencies
+node_modules/
+
+# Agent
+CLAUDE.md
+.dsh/
+
+# Local dev docs (not committed)
+docs/*
+!docs/aurora-assessment-2026-11-18.md
+
+# Astro — track type declarations, ignore dev artifacts
+packages/template-astro/.astro/collections/
+packages/template-astro/.astro/dev.json
+packages/template-astro/.astro/settings.json
+
+# build output
+dist/
+.chronicle/gen-cache
+
+# REMOVE when deploying to production
+site.legacy/
+
+
+*.bak
+src/plugins/generated-registry.ts
+src/plugins/generated-locales.ts
+
+# CMS local state — generated on first launch from the settings schema
+.chronicle/
+
+# Demo site content lives on the `demo` branch, fetched by `npm run demo:fetch`
+demo/
+
+# Local build output (demo / screenshots / base-path / isolation checks)
+dist-*/
+# Staging directory used by the generator while copying a build; a failed
+# rename (file lock, antivirus) leaves it behind instead of producing dist/.
+dist.stage-*/

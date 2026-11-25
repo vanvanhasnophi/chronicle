@@ -1,0 +1,774 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import { withBase, BASE_PATH } from '../utils/basePath';
+import NavHeader from '../components/NavHeader.astro';
+import FilePreviewModal from '../components/FilePreviewModal.astro';
+import { getPluginSlot } from '../plugins';
+import { getLocale, getTranslation } from '../utils/i18n';
+import { resolveFeatureFlags } from '../utils/featureFlags';
+// ── 主题发现：目录即选定，aurora 恒作后备 ────────────────
+// themes/ 下非 aurora 的主题目录按字典序首个为活动主题；无则回退默认主题 aurora。
+// 换主题 = 移入主题目录（manifest + components/ + styles/），零配置零改码。
+// aurora 以静态 import 常驻后备位——活动主题缺失/异常时站点永远可渲染。
+import { theme as auroraTheme } from '../themes/aurora/manifest';
+import AuroraThemeInit from '../themes/aurora/components/ThemeInit.astro';
+import AuroraThemeVars from '../themes/aurora/components/ThemeVars.astro';
+import AuroraThemeRuntime from '../themes/aurora/components/ThemeRuntime.astro';
+import chronicleMarkdownCss from '@chronicle/shared/src/styles/chronicle-markdown.css?raw';
+
+import { hexToRgbString } from '../utils/colorUtils';
+
+const DEFAULT_THEME = 'aurora';
+const themeManifests = import.meta.glob('../themes/*/manifest.*', {
+  eager: true,
+  import: 'default',
+});
+const themeName =
+  Object.keys(themeManifests)
+    .map((k) => k.match(/themes\/([^/]+)\/manifest/)?.[1])
+    .filter((n): n is string => !!n && n !== DEFAULT_THEME)
+    .sort()[0] ?? DEFAULT_THEME;
+const themeManifest = themeName === DEFAULT_THEME
+  ? auroraTheme
+  : (themeManifests[Object.keys(themeManifests).find((k) => k.includes(`/themes/${themeName}/manifest`)) ?? ''] ?? auroraTheme) as typeof auroraTheme;
+
+const themeComponents = import.meta.glob('../themes/*/components/*.astro', {
+  eager: true,
+  import: 'default',
+});
+const ThemeInit = (themeComponents[`../themes/${themeName}/components/ThemeInit.astro`] ?? AuroraThemeInit) as any;
+const ThemeVars = (themeComponents[`../themes/${themeName}/components/ThemeVars.astro`] ?? AuroraThemeVars) as any;
+const ThemeRuntime = (themeComponents[`../themes/${themeName}/components/ThemeRuntime.astro`] ?? AuroraThemeRuntime) as any;
+
+// ── Critical CSS：由主题 manifest 驱动（自动识别）────────────
+// 页型 → CSS 文件的映射在 themes/<name>/manifest.ts 声明；
+// 这里通过 glob 按 manifest 里的文件名取 raw 内容。
+// 主题缺省的页型自动跳过（返回 ''），允许主题只声明部分页型。
+const criticalRaw = import.meta.glob<string>('../themes/*/styles/critical/*.css', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+const themeCss = (name: string) => criticalRaw[`../themes/${themeName}/styles/critical/${name}`] ?? '';
+
+// ── 主题异步样式（global/utilities）：?url → <link>，defer-css 集成改写为异步加载 ──
+const themeStyleUrls = import.meta.glob<string>('../themes/*/styles/{global,utilities}.css', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+const globalCssUrl = themeStyleUrls[`../themes/${themeName}/styles/global.css`];
+const utilitiesCssUrl = themeStyleUrls[`../themes/${themeName}/styles/utilities.css`];
+
+// Assemble critical CSS based on page type — only inject what this page needs.
+const pathname = Astro.url.pathname;
+const isHome = /^\/(en|zh)\/?$/.test(pathname);
+const isPost = pathname.includes('/post/');
+const isAbout = /^\/(en|zh)\/about\/?$/.test(pathname);
+const isBlogs = /\/(en|zh)\/blogs\/?$/.test(pathname);
+// chronicle-markdown.css is inlined for post/about pages instead of a
+// render-blocking <link>: a separate request for it gated FCP with huge
+// run-to-run variance (observed arrival 138ms–1063ms → lab FCP 1.7s–5.9s).
+// The built file is only ~21KB raw; inlining removes the request entirely.
+// Order: after criticalPost, so its .chr-md rules keep winning the cascade
+// (same as the old link-after-inline-style behavior).
+const criticalTokens = themeCss(themeManifest.tokens);
+
+// 级联层序（低 → 高）：chr-global（base 手写镜像 + global 异步本体，同名合并）< chr-component（组件默认）
+// 未分层（页面型 critical + 页面级外链 css + 内联自定义）永远高于所有层 —— 页面型可覆盖
+// 全局基础的同名规则，与特异性无关（如 blogs 的 .section-title 覆盖 global 的）。
+// base 与 global 同层同值：base 内联先到作首帧占位，global 迟到覆盖（同值）→ 零 CLS。
+// 旧浏览器（不支持 @layer）丢弃分层块：保留变量(tokens) + 页面型，渐进增强缺失可接受。
+const CSS_LAYERS = '@layer chr-global, chr-component;';
+
+const criticalBaseCss = themeCss(themeManifest.critical.base);
+
+const criticalCSS = [
+  CSS_LAYERS,
+  criticalBaseCss ? `@layer chr-global{${criticalBaseCss}}` : '',
+  isHome    ? themeCss(themeManifest.critical.home)    : '',
+  isPost    ? themeCss(themeManifest.critical.post)    : '',
+  (isPost || isAbout) ? chronicleMarkdownCss : '',
+  isBlogs   ? themeCss(themeManifest.critical.blogs)   : '',
+  isAbout   ? themeCss(themeManifest.critical.about)    : '',
+  // 模块页型（search/collection/friends）的 critical 由插件页面体经 head slot 注入——内核零预知
+].join('');
+
+export interface Props {
+  title?: string;
+  settings?: any;
+  locale?: 'en' | 'zh-CN';
+  meta?: string | {
+    title?: string;
+    description?: string;
+    keywords?: string[] | string;
+    type?: string;
+    image?: string;
+    url?: string;
+    robots?: string;
+    noIndex?: boolean;
+  };
+  navTitle?: string;
+  navBackHref?: string;
+  navBackLabel?: string;
+  scrollable?: boolean;
+  featureFlags?: Record<string, boolean>;
+  disableMainContentTransition?: boolean;
+  /** 额外 body 类（插件契约：如合集导航的 has-collection-nav 正文让位）——core 零语义 */
+  bodyClass?: string;
+}
+
+const { title, settings, locale: propLocale, meta, navTitle, navBackHref, navBackLabel, scrollable, disableMainContentTransition, bodyClass } = Astro.props;
+const pageMeta = typeof meta === 'string' ? { description: meta } : (meta || {});
+// Icons resolved at build time: data/branding/ overrides, avatar fallback (appearance.useAvatarAsIcon).
+const brandIcons = typeof __BRAND_ICONS__ !== 'undefined' ? __BRAND_ICONS__ : null;
+const featureFlags = resolveFeatureFlags(settings?.featureFlags || Astro.props.featureFlags);
+// 全局搜索弹层槽位：search 插件注册；when.featureFlag='globalSearch' 由 getPluginSlot 门控
+// （与 NavHeader 搜索按钮同 flag，配置关闭 → 弹层与入口一起消失）
+const OverlaySlot = getPluginSlot('global-search-overlay', { featureFlags });
+const mediaDomain = String(process.env.MEDIA_DOMAIN || '').replace(/\/$/, '');
+
+function resolveMediaUrl(value: any) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '';
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+  return normalized;
+}
+
+function normalizeLayoutBackground(raw: any) {
+  if (!raw) return '';
+  if (typeof raw === 'string') return resolveMediaUrl(raw);
+  if (typeof raw !== 'object') return '';
+
+  const backgroundUrl = resolveMediaUrl(raw.url || raw.path || raw.backgroundUrl || raw.generatedPath || raw.sourcePath || '');
+  return {
+    ...raw,
+    url: backgroundUrl,
+    path: String(raw.path || raw.generatedPath || raw.sourcePath || '').replace(/^\/+/, ''),
+    generatedPath: String(raw.generatedPath || raw.path || '').replace(/^\/+/, ''),
+  };
+}
+
+const siteTitle = settings?.siteName || 'Chronicle';
+const displayTitle = title ? `${title} - ${siteTitle}` : siteTitle;
+const metaTitle = pageMeta.title ? `${pageMeta.title} - ${siteTitle}` : displayTitle;
+const metaDescription = String(pageMeta.description || '').trim();
+const metaKeywords = Array.isArray(pageMeta.keywords)
+  ? pageMeta.keywords.filter(Boolean).join(', ')
+  : String(pageMeta.keywords || '').trim();
+const metaType = String(pageMeta.type || 'website').trim();
+const metaRobots = String(pageMeta.robots || (pageMeta.noIndex ? 'noindex,nofollow' : '')).trim();
+
+// Canonical + Open Graph URLs. The origin comes from `site` (SITE_URL), so the
+// bilingual /zh and /en routes each declare themselves instead of competing.
+const siteOrigin = String(Astro.site?.origin || '').replace(/\/+$/, '');
+const canonicalPath = Astro.url.pathname.replace(/\/index\.html?$/i, '/').replace(/\/{2,}/g, '/');
+const metaUrl = String(pageMeta.url || '').trim() || (siteOrigin ? `${siteOrigin}${canonicalPath}` : '');
+
+/** Social cards need an absolute http(s) URL; asset:// and bare relative paths are unusable. */
+function toAbsoluteUrl(value: any): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('//')) return `https:${raw}`;
+  if (!raw.startsWith('/')) return '';
+  return siteOrigin ? `${siteOrigin}${raw}` : '';
+}
+const DEFAULT_OG_IMAGE = '/branding/og-default.png';
+const metaImage = toAbsoluteUrl(pageMeta.image) || toAbsoluteUrl(withBase(DEFAULT_OG_IMAGE));
+
+// 从settings获取样式配置
+const theme = settings?.theme || 'follow';
+const rawAccent = settings?.accent || '#10b981';
+// A site may point accent at the featured token. Resolve that known token to
+// its base color so SSR hue detection and the light-mode derivation still work.
+const accent = /^var\(--featured(?:\s*,.*)?\)$/.test(String(rawAccent).trim())
+  ? '#ffd700'
+  : rawAccent;
+
+function accentIsGoldLike(value: string): boolean {
+  const m = String(value || '').trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!m) return false;
+  let hex = m[1];
+  if (hex.length === 3) hex = hex.split('').map((c) => c + c).join('');
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let hue = 0;
+  if (d !== 0) {
+    if (max === r) hue = ((g - b) / d) % 6;
+    else if (max === g) hue = (b - r) / d + 2;
+    else hue = (r - g) / d + 4;
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+  return hue >= 20 && hue <= 70 && sat > 0.35 && l > 0.3 && l < 0.85;
+}
+
+const featuredAlt = accentIsGoldLike(accent);
+const background = normalizeLayoutBackground(settings?.background || '');
+const backgroundMetaRaw = settings?.backgroundMeta || null;
+const backgroundColorLight = settings?.baseColorLight || settings?.backgroundColorLight || '';
+const backgroundColorDark = settings?.baseColorDark || settings?.backgroundColorDark || '';
+const font = settings?.font || 'sans';
+const defaultPerformanceMode = settings?.defaultPerformanceMode || 'auto';
+
+// ── Background layer: resolve build-time CSS values ──
+// The background image URL, mode-derived size/position/repeat, blur, and the
+// light/dark overlay + surface colors are all known at build time. Emit them as
+// static CSS so no runtime JS is needed to render the background layer.
+const backgroundImageUrl = typeof background === 'string'
+  ? background
+  : (background && (background as any).url) || '';
+
+let backgroundMeta: any = null;
+try {
+  backgroundMeta = backgroundMetaRaw ? JSON.parse(String(backgroundMetaRaw)) : null;
+} catch (e) { backgroundMeta = null; }
+
+// ── Background video (optional) — preload="none" so it never competes with the
+//    page skeleton; the fallback image below shows first, and the video fades in
+//    over it once its first frame is decodable (layout-init.ts) ──
+const backgroundVideoUrl = typeof settings?.backgroundVideo === 'string'
+  ? settings.backgroundVideo
+  : '';
+// Explicit fallback first-frame poster (background_alt.<ext>) — shown as the
+// static bg-image while the video loads (no native `poster` attr, to avoid the
+// cached-refresh poster flash).
+const backgroundPosterUrl = typeof settings?.backgroundPoster === 'string'
+  ? settings.backgroundPoster
+  : '';
+const videoAutoplay = backgroundMeta?.videoAutoplay !== false;   // default true
+const videoLoop = backgroundMeta?.videoLoop !== false;           // default true
+const videoPlaybackRate = Number(backgroundMeta?.videoPlaybackRate ?? 1) || 1;
+
+// Fallback static image shown first (below the video). With a video, prefer the
+// poster (first frame); otherwise the main background image. It stays permanently
+// — the graceful fallback when the video errors or is paused.
+const fallbackImageUrl = backgroundVideoUrl
+  ? (backgroundPosterUrl || backgroundImageUrl)
+  : backgroundImageUrl;
+
+// Compressed-variant candidates (avif > webp > original) for whichever fallback
+// image was chosen. Serialized to data-bg-image as JSON; layout-init.ts probes
+// them in order after FCP and uses the first that decodes → smallest bytes.
+const fallbackCandidates = backgroundVideoUrl
+  ? (settings?.backgroundPosterCandidates?.length
+      ? settings.backgroundPosterCandidates
+      : settings?.backgroundCandidates ?? [])
+  : (settings?.backgroundCandidates ?? []);
+const fallbackBgAttr = fallbackCandidates.length > 1
+  ? JSON.stringify(fallbackCandidates)
+  : (fallbackCandidates[0] || fallbackImageUrl || undefined);
+
+const bgMode = backgroundMeta?.mode || 'cover';
+const bgCompression = Number(backgroundMeta?.compressionFactor ?? backgroundMeta?.compression ?? backgroundMeta?.bgCompression ?? backgroundMeta?.scale ?? 1);
+const bgScale = Number(backgroundMeta?.size || 100);
+const bgEffectiveScale = Number.isFinite(bgCompression) && bgCompression > 0 ? bgCompression : 1;
+
+let bgImagePosition = 'center';
+let bgImageSize = 'cover';
+let bgImageRepeat = 'no-repeat';
+switch (bgMode) {
+  case 'contain':
+    bgImageSize = 'contain';
+    break;
+  case 'fill':
+    bgImageSize = '100% 100%';
+    break;
+  case 'tile':
+    bgImagePosition = '0 0';
+    bgImageSize = `${bgScale * bgEffectiveScale}%`;
+    bgImageRepeat = 'repeat';
+    break;
+  case 'custom':
+    bgImagePosition = `${backgroundMeta?.posX ?? 50}% ${backgroundMeta?.posY ?? 50}%`;
+    bgImageSize = `${bgScale * bgEffectiveScale}%`;
+    bgImageRepeat = 'no-repeat';
+    break;
+  case 'cover':
+  default:
+    bgImagePosition = 'center';
+    bgImageSize = 'cover';
+    bgImageRepeat = 'no-repeat';
+}
+
+const bgBlur = Number(backgroundMeta?.blur || 0);
+
+function overlayRgba(color: any, opacity: any): string {
+  const c = String(color || '').trim();
+  if (!c || c === 'transparent') return 'transparent';
+  const opa = (opacity != null ? (Number(opacity) || 0) : 0) / 100;
+  const rgb = hexToRgbString(c);
+  return `rgba(${rgb}, ${opa})`;
+}
+
+const bgOverlayLight = overlayRgba(
+  backgroundMeta?.overlayLightColor || backgroundMeta?.overlayColor,
+  backgroundMeta?.overlayLightOpacity != null ? backgroundMeta?.overlayLightOpacity : backgroundMeta?.overlayOpacity
+);
+const bgOverlayDark = overlayRgba(
+  backgroundMeta?.overlayDarkColor || backgroundMeta?.overlayColor,
+  backgroundMeta?.overlayDarkOpacity != null ? backgroundMeta?.overlayDarkOpacity : backgroundMeta?.overlayOpacity
+);
+
+const hasSurfaceLight = Boolean(backgroundColorLight);
+const hasSurfaceDark = Boolean(backgroundColorDark);
+
+// 遮罩/模糊属于「背景层」而非「图片」——有图或有视频都应生效，否则纯视频背景
+// 会漏掉 background.yml 里配置的 overlay + blur。
+const hasBackgroundMedia = Boolean(fallbackImageUrl || backgroundVideoUrl);
+
+let backgroundCss = '';
+if (fallbackImageUrl) {
+  // NOTE: background-image URL is intentionally NOT inlined here. A CSS
+  // background-image starts downloading the moment the style is parsed, i.e.
+  // at +0ms on the critical path — measured +13.6x FCP (260ms→3552ms) on a
+  // 188KB bg under contended bandwidth. The URL lives only in data-bg-image
+  // and is applied by JS (layout-init.ts) AFTER first paint, same as the video.
+  backgroundCss += '#chr-bg-layer .bg-image {\n';
+  backgroundCss += `  background-size: ${bgImageSize} !important;\n`;
+  backgroundCss += `  background-position: ${bgImagePosition} !important;\n`;
+  backgroundCss += `  background-repeat: ${bgImageRepeat} !important;\n`;
+  backgroundCss += '}\n';
+}
+if (hasBackgroundMedia) {
+  if (bgBlur > 0) {
+    backgroundCss += '#chr-bg-layer .bg-overlay {\n';
+    backgroundCss += `  backdrop-filter: blur(${bgBlur}px);\n`;
+    backgroundCss += `  -webkit-backdrop-filter: blur(${bgBlur}px);\n`;
+    backgroundCss += '}\n';
+  }
+  backgroundCss += ':root {\n';
+  backgroundCss += `  --frontend-bg-overlay-light: ${bgOverlayLight};\n`;
+  backgroundCss += `  --frontend-bg-overlay-dark: ${bgOverlayDark};\n`;
+  backgroundCss += '}\n';
+}
+if (hasSurfaceLight || hasSurfaceDark) {
+  if (hasSurfaceLight) backgroundCss += `:root { --bg-surface-color-light: ${backgroundColorLight}; }\n`;
+  if (hasSurfaceDark) backgroundCss += `:root { --bg-surface-color-dark: ${backgroundColorDark}; }\n`;
+  backgroundCss += ':root { --bg-surface-color: var(--bg-surface-color-dark, var(--app-bg-pri)); }\n';
+  backgroundCss += ':root[data-theme="light"] { --bg-surface-color: var(--bg-surface-color-light, var(--app-bg-pri)); }\n';
+  backgroundCss += '@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg-surface-color: var(--bg-surface-color-light, var(--app-bg-pri)); } }\n';
+}
+
+// 从Astro.locals获取locale（由middleware设置）
+const locale = propLocale || getLocale(Astro.locals);
+const htmlLang = locale === 'zh-CN' ? 'zh-CN' : 'en';
+const t = (key: string) => getTranslation(locale, key);
+const routePrefix = withBase(locale === 'zh-CN' ? '/zh' : '/en');
+// ── Analytics (3.1.x) — multi-backend, from the site.yml analytics: block ──
+const analyticsCfg = ((settings as Record<string, any>)?.analytics || {}) as Record<string, any>;
+const analyticsEnabled = analyticsCfg.enabled === true;
+const analyticsBackend = analyticsEnabled ? String(analyticsCfg.backend || '') : '';
+const ANALYTICS_GA_ID = String(process.env.GA_MEASUREMENT_ID || analyticsCfg.gaMeasurementId || '').trim();
+---
+<!DOCTYPE html>
+<html lang={htmlLang} data-base={BASE_PATH} class={"immersive"} data-perf-default={defaultPerformanceMode} data-featured-alt={featuredAlt ? "true" : undefined} style={`--accent-base:${accent}`}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    {brandIcons?.primary && (
+      <link rel="icon" href={withBase(brandIcons.primary.href)} type={brandIcons.primary.type} sizes={brandIcons.primary.sizes} />
+    )}
+    {brandIcons?.pngLink && (
+      <link rel="icon" href={withBase(brandIcons.pngLink.href)} sizes={brandIcons.pngLink.sizes} type={brandIcons.pngLink.type} />
+    )}
+    {brandIcons?.appleTouch && <link rel="apple-touch-icon" href={withBase(brandIcons.appleTouch)} />}
+    <link rel="manifest" href={withBase('/site.webmanifest')} />
+    <meta name="theme-color" content={brandIcons?.themeColor || accent} />
+    {settings?.post?.postComments?.walineServerUrl ? <link rel="dns-prefetch" href={String(settings.post.postComments.walineServerUrl).replace(/\/+$/, '')} /> : null}
+    <meta name="description" content={metaDescription} />
+    {metaKeywords ? <meta name="keywords" content={metaKeywords} /> : null}
+    {metaRobots ? <meta name="robots" content={metaRobots} /> : null}
+    {metaUrl ? <link rel="canonical" href={metaUrl} /> : null}
+    <meta property="og:site_name" content={siteTitle} />
+    <meta property="og:title" content={metaTitle} />
+    <meta property="og:description" content={metaDescription} />
+    <meta property="og:type" content={metaType} />
+    {metaUrl ? <meta property="og:url" content={metaUrl} /> : null}
+    {metaImage ? <meta property="og:image" content={metaImage} /> : null}
+    <meta name="twitter:card" content={metaImage ? 'summary_large_image' : 'summary'} />
+    <meta name="twitter:title" content={metaTitle} />
+    <meta name="twitter:description" content={metaDescription} />
+    {metaImage ? <meta name="twitter:image" content={metaImage} /> : null}
+    <title>{displayTitle}</title>
+    <!-- Analytics injection (3.1.x multi-backend). All backends load after
+         window.load (non-blocking) and fail silently when unreachable.
+         Custom events (page_view / post_view) are only used by Google Analytics;
+         Cloudflare RUM / Umami / Plausible / Baidu auto-track. -->
+    {analyticsEnabled && analyticsBackend === 'ga' && ANALYTICS_GA_ID ? (
+        <script is:inline define:vars={{ ANALYTICS_GA_ID }}>
+          // 队列：gtag() 调用先入 dataLayer，gtag.js 真正加载后自动重放，不丢事件。
+          window.dataLayer = window.dataLayer || [];
+          window.gtag = function () { window.dataLayer.push(arguments); };
+          gtag('js', new Date());
+          gtag('config', ANALYTICS_GA_ID, { send_page_view: false });
+
+          // gtag.js 延迟注入：等 window.load 之后再加载，避免 googletagmanager.com
+          // 被墙/超时时阻塞 load 事件。被墙时脚本 onerror 静默失败，不影响页面。
+          (function injectGtag() {
+            function load() {
+              var s = document.createElement('script');
+              s.async = true;
+              s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(ANALYTICS_GA_ID);
+              s.onerror = function () { /* 被墙/超时：静默失败 */ };
+              document.head.appendChild(s);
+            }
+            if (document.readyState === 'complete') {
+              setTimeout(load, 0);
+            } else {
+              window.addEventListener('load', function () { setTimeout(load, 0); }, { once: true });
+            }
+          })();
+        </script>
+        <script is:inline>
+          (function(){
+            if (typeof window === 'undefined') return;
+            // __chronicleAnalytics shim — custom events only meaningful for GA.
+            window.__chronicleAnalytics = {
+              track: function (event, params) {
+                if (typeof window.gtag === 'function') {
+                  try { window.gtag('event', event, params || {}); } catch (e) {}
+                }
+              }
+            };
+            function sendPageView() {
+              try {
+                const settings = (window.__CHRONICLE_SETTINGS__ || {});
+                const analytics = settings?.analytics || {};
+                if (analytics.enabled !== true) return;
+                window.__chronicleAnalytics.track('page_view', { page_path: location.pathname, page_title: document.title });
+              } catch (e) { console.warn('[analytics] page_view failed', e); }
+            }
+            document.addEventListener('astro:page-load', sendPageView);
+            document.addEventListener('astro:after-swap', sendPageView);
+          })();
+        </script>
+    ) : analyticsEnabled && analyticsBackend === 'cloudflare' && analyticsCfg.cloudflareToken ? (
+        <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={`{"token": "${analyticsCfg.cloudflareToken}"}`}></script>
+    ) : analyticsEnabled && analyticsBackend === 'umami' && analyticsCfg.umamiServerUrl && analyticsCfg.umamiWebsiteId ? (
+        <script defer src={`${analyticsCfg.umamiServerUrl}/script.js`} data-website-id={analyticsCfg.umamiWebsiteId}></script>
+    ) : analyticsEnabled && analyticsBackend === 'plausible' && analyticsCfg.plausibleServerUrl && analyticsCfg.plausibleDomain ? (
+        <script defer data-domain={analyticsCfg.plausibleDomain} src={`${analyticsCfg.plausibleServerUrl}/js/script.js`}></script>
+    ) : analyticsEnabled && analyticsBackend === 'baidu' && analyticsCfg.baiduId ? (
+        <script is:inline define:vars={{ BAIDU_ID: analyticsCfg.baiduId }}>
+          var _hmt = _hmt || [];
+          (function () {
+            var hm = document.createElement('script');
+            hm.src = 'https://hm.baidu.com/hm.js?' + BAIDU_ID;
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(hm, s);
+          })();
+        </script>
+    ) : null}
+
+    <!-- Legacy SW cleanup (non-blocking) -->
+    <script async>
+      (function(){if(typeof window==='undefined'||!('serviceWorker' in navigator))return;
+      const f='chronicle.sw.cleanup.v2';(async()=>{try{
+      const r=await navigator.serviceWorker.getRegistrations();if(!r.length)return;
+      await Promise.all(r.map(x=>x.unregister()));
+      if('caches' in window){const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)))}
+      if(!sessionStorage.getItem(f)){sessionStorage.setItem(f,'1');location.reload()}
+      }catch(e){}})()})();
+    </script>
+
+    <ClientRouter />
+
+    <!-- 主题首帧初始化（FOUC 防护）：focus 清除 + 字体 + data-theme 首帧应用。
+         必须早于任何依赖 data-theme 的 CSS（critical tokens 之前）。 -->
+    <ThemeInit />
+
+    <!-- Critical tokens: inlined to eliminate network RTT.
+         Tokens must resolve before the skeleton CSS below paints. -->
+    <style is:inline set:html={criticalTokens}></style>
+
+    <!-- 主题 SSR 变量（accent / 字体栈 / 视图过渡辅助） -->
+    <ThemeVars accent={accent} font={font} />
+
+    <!-- Critical CSS skeleton (geometry + colours — tokens are inline above) -->
+    <style is:inline set:html={criticalCSS}></style>
+
+    <!-- 主题异步样式（global/utilities）：独立 <link>，defer-css 集成改写为异步加载 -->
+    {globalCssUrl ? <link rel="stylesheet" href={globalCssUrl} /> : null}
+    {utilitiesCssUrl ? <link rel="stylesheet" href={utilitiesCssUrl} /> : null}
+
+    <!-- Background layer CSS: image + mode + blur + overlay/surface colors resolved at build time -->
+    {backgroundCss ? <style is:inline set:html={backgroundCss}></style> : null}
+
+    <script define:vars={{ theme, accent, background, backgroundMeta, backgroundColorLight, backgroundColorDark, font, featureFlags, analyticsCfg }}>
+      // 将settings传递给客户端
+      window.__CHRONICLE_SETTINGS__ = {
+        theme,
+        accent,
+        background,
+        backgroundMeta,
+        backgroundColorLight,
+        backgroundColorDark,
+        font,
+        featureFlags,
+        analytics: analyticsCfg
+      };
+    </script>
+
+    <script define:vars={{ mediaBaseUrl: mediaDomain }}>
+      window.__CHRONICLE_MEDIA_BASE_URL__ = mediaBaseUrl;
+    </script>
+
+    <!-- 主题运行时：移动端类 / 性能模式 / 背景层淡入 / 软路由主题恢复 -->
+    <ThemeRuntime />
+
+    <!-- Named slot: pages can inject head content (e.g. render-blocking stylesheets
+         that must apply before first paint, like chronicle-markdown.css on post pages). -->
+    <slot name="head" />
+  </head>
+  <body class:list={["frontend-body", bodyClass]}>
+    <!-- 全局隐藏的 SVG defs，放在 body 开头 -->
+    <svg aria-hidden="true" class="u-svg-defs">
+      <defs>
+        <!-- 线形小箭头：stroke-only, 更小尺寸 -->
+        <marker id="chronicle-mermaid-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L6,3 L0,6" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+        </marker>
+        <!-- 如需不同样式，可再加 marker id -->
+      </defs>
+    </svg>
+    <!-- 背景层 - 使用transition:persist保持跨页面持久化 -->
+    <div id="chr-bg-layer" transition:persist="background-layer" data-bg-image={fallbackBgAttr}>
+      <div class="bg-image"></div>
+      <div class="bg-surface"></div>
+      {backgroundVideoUrl ? (
+        <video class="bg-video" muted loop={videoLoop} playsinline preload="none" src={backgroundVideoUrl} data-autoplay={videoAutoplay ? '1' : '0'} data-playback-rate={String(videoPlaybackRate)}></video>
+      ) : null}
+      <div class="bg-overlay"></div>
+    </div>
+
+    <div id="route-progress" aria-hidden="true" transition:persist="route-progress"><span></span></div>
+
+    <div id="app">
+      <NavHeader currentPath={Astro.url.pathname} locale={locale} articleTitle={navTitle} articleBackHref={navBackHref} articleBackLabel={navBackLabel} featureFlags={featureFlags} defaultPerformanceMode={defaultPerformanceMode} siteName={siteTitle} />
+
+      {disableMainContentTransition ? (
+        <div class={`main-content ${scrollable === false ? 'unscrollable' : ''}`}>
+          <slot />
+        </div>
+      ) : (
+        <div class={`main-content ${scrollable === false ? 'unscrollable' : ''}`} transition:animate="fade">
+          <slot />
+        </div>
+      )}
+    </div>
+
+    <FilePreviewModal />
+
+    {OverlaySlot ? <OverlaySlot locale={locale} routePrefix={routePrefix} t={t} searchSuggestionsEnabled={featureFlags.searchSuggestions !== false} fullTextSearchEnabled={featureFlags.fullTextSearch === true} /> : null}
+
+
+    <!-- Deferred link prefetch: activates only after the page is idle.
+         Kept out of the initial bundle to preserve FCP — Astro's built-in
+         `prefetch` config injects ~4 KiB of prefetch.js into the critical
+         JS chain; this tiny (~600 B) replacement uses event delegation and
+         native fetch(), waking up only after requestIdleCallback / 2 s fallback.
+         Subsequent SPA navigations benefit from pre-warmed pages.
+
+         防抖 + 限流：hover 触发带 120ms 防抖（快速滑过不请求）、并发上限 2、
+         请求间最小间隔 300ms——避免快速扫过导航栏触发大量并发 prefetch 被
+         CDN 限流（此前 /en/friends、/en/blogs 出现 503）。 -->
+    <script>
+      (function () {
+        const PREFETCHED = new Set();
+        let _active = false;
+        // 限流：并发上限 + 冷却
+        let _inflight = 0;
+        let _lastFetch = 0;
+        let _debounceTimer = null;
+        let _pendingUrl = '';
+        const CONCURRENCY_LIMIT = 2;
+        const MIN_INTERVAL_MS = 300;
+        const DEBOUNCE_MS = 120;
+
+        function resolveUrl(href: string) {
+          try {
+            const u = new URL(href, location.origin);
+            if (u.origin !== location.origin) return '';
+            if (u.hash && u.pathname + u.search === location.pathname + location.search) return '';
+            return u.pathname + u.search;
+          } catch { return ''; }
+        }
+
+        function doFetch(url: string) {
+          if (PREFETCHED.has(url)) return;
+          PREFETCHED.add(url);
+          _inflight++;
+          // priority: 'low' tells the browser this fetch must not compete with
+          // critical resources on the current page — no timer needed.
+          const controller = new AbortController();
+          setTimeout(() => controller.abort(), 10000);
+          fetch(url, { priority: 'low', signal: controller.signal, headers: { 'X-Prefetch': '1' } })
+            .catch(() => {})
+            .finally(() => { _inflight--; _lastFetch = Date.now(); });
+        }
+
+        function maybePrefetch(url: string) {
+          if (!url || PREFETCHED.has(url)) return;
+          // 冷却：距上次请求不足最小间隔 → 延后到间隔后再发（不丢弃，避免丢 prefetch）
+          const wait = MIN_INTERVAL_MS - (Date.now() - _lastFetch);
+          if (wait > 0) {
+            _pendingUrl = url;
+            if (!_debounceTimer) {
+              _debounceTimer = setTimeout(() => {
+                _debounceTimer = null;
+                const u = _pendingUrl; _pendingUrl = '';
+                if (u) doFetch(u);
+              }, wait);
+            }
+            return;
+          }
+          // 并发未超限 → 立即发
+          if (_inflight < CONCURRENCY_LIMIT) {
+            doFetch(url);
+          } else {
+            _pendingUrl = url;
+          }
+        }
+
+        function onHover(e: Event) {
+          const a = (e.target as Element).closest('a[href]') as HTMLAnchorElement | null;
+          if (!a) return;
+          const url = resolveUrl(a.href);
+          if (!url) return;
+          // 防抖：快速滑过多个链接只取最后一个
+          if (_debounceTimer) { clearTimeout(_debounceTimer); _debounceTimer = null; }
+          _pendingUrl = url;
+          _debounceTimer = setTimeout(() => {
+            _debounceTimer = null;
+            const u = _pendingUrl; _pendingUrl = '';
+            if (u) maybePrefetch(u);
+          }, DEBOUNCE_MS);
+        }
+
+        function activate() {
+          if (_active) return;
+          _active = true;
+          // mouseover + touchstart, no timer — priority: 'low' ensures this
+          // never contends with current-page rendering
+          document.addEventListener('mouseover', onHover, { passive: true });
+          document.addEventListener('touchstart', onHover, { passive: true });
+        }
+
+        // Defer activation until the page is fully settled.
+        document.addEventListener('astro:page-load', () => {
+          if (_active) return;
+          if (typeof requestIdleCallback !== 'undefined') {
+            requestIdleCallback(() => activate(), { timeout: 2000 });
+          } else {
+            setTimeout(activate, 2000);
+          }
+        });
+      })();
+    </script>
+
+    <style is:inline>
+      /* 状态：.is-active 显示；.is-done = 已到 100%。
+         宽度由 JS 驱动：14% → 慢导航 60% → 100%。 */
+      #route-progress {
+        position: fixed;
+        inset: 0 0 auto;
+        height: 2px;
+        z-index: 100000;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 180ms ease; /* 消失时短渐隐 */
+      }
+      #route-progress span {
+        display: block;
+        height: 100%;
+        width: 0;
+        /* 以 accent-readable 为基色（深色偏亮、浅色偏深），右端向白混一点 */
+        background: linear-gradient(90deg, var(--accent-readable), color-mix(in srgb, var(--accent-readable) 55%, #fff));
+        box-shadow: 0 0 10px color-mix(in srgb, var(--accent-readable) 55%, transparent);
+        transition: width 220ms cubic-bezier(.2, .8, .2, 1);
+      }
+      #route-progress.is-active { opacity: 1; }
+      /* 只在加载中压暗内容；到 100%（is-done）立即恢复，压暗不进入换页过渡 */
+      #route-progress.is-active:not(.is-done) ~ #app {
+        opacity: .75;
+        transition: opacity 100ms ease;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #route-progress.is-active:not(.is-done) ~ #app { transition: none; }
+      }
+    </style>
+    <script is:inline>
+      (() => {
+        if (window.__chronicleRouteProgress) return;
+        window.__chronicleRouteProgress = true;
+
+        // 进度条带 transition:persist，跨软路由保留同一个节点，引用可缓存。
+        const bar = document.getElementById('route-progress');
+        const span = bar && bar.querySelector('span');
+        let creepT = 0;
+        let hideT = 0;
+        let safetyT = 0;
+
+        // instant：绕过 220ms 宽度过渡（提交 100% / 归零时用）
+        const setWidth = (w, instant = false) => {
+          if (!span) return;
+          if (!instant) {
+            span.style.width = w;
+            return;
+          }
+          const prev = span.style.transition;
+          span.style.transition = 'none';
+          span.style.width = w;
+          void span.offsetWidth; // Astro 紧接着拍快照，必须先把新宽度提交掉
+          span.style.transition = prev;
+        };
+
+        const hide = (delay = 0) => {
+          clearTimeout(hideT);
+          hideT = setTimeout(() => {
+            bar?.classList.remove('is-active', 'is-done');
+            setTimeout(() => setWidth('0', true), 200); // 等 180ms 渐隐走完
+          }, delay);
+        };
+
+        const complete = () => {
+          clearTimeout(creepT);
+          clearTimeout(safetyT);
+          bar?.classList.add('is-done'); // 100% 立即取消内容压暗
+          setWidth('100%', true);
+        };
+
+        const start = () => {
+          if (!bar) return;
+          clearTimeout(hideT);
+          bar.classList.remove('is-done');
+          bar.classList.add('is-active');
+          setWidth('14%');
+          clearTimeout(creepT);
+          creepT = setTimeout(() => setWidth('60%'), 280); // 慢导航先爬到 60%
+          clearTimeout(safetyT);
+          safetyT = setTimeout(() => { complete(); hide(); }, 10000);
+        };
+
+        document.addEventListener('astro:before-preparation', start);
+        // Astro 顺序：fetch → after-preparation → startViewTransition(拍旧页快照) → before-swap
+        document.addEventListener('astro:after-preparation', complete);
+        document.addEventListener('astro:before-swap', (event) => {
+          const vt = event.viewTransition;
+          if (vt?.finished) vt.finished.catch(() => {}).then(() => hide(60));
+          else hide(60);
+        });
+      })();
+    </script>
+
+    <!-- tocController is lazily loaded by FloatingToc.astro (article pages) and
+         cornerButtonCore.ts (TOC templates only). Homepage never loads it. -->
+  </body>
+</html>

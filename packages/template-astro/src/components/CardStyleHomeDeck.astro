@@ -1,0 +1,582 @@
+---
+import '../themes/aurora/styles/components/card-style-home-deck.css';
+import { buildLocalizedPath } from "../utils/routeLocale";
+import { withBase } from "../utils/basePath";
+import { loadSiteSettings } from "../utils/siteSettings";
+import { loadSiteProfile } from "../utils/siteProfile";
+import { getTranslation, getLocale } from "../utils/i18n";
+import { getPluginSlots } from '../plugins';
+import ChronicleImage from "./ChronicleImage.astro";
+import IntroCard from "./home-cards/IntroCard.astro";
+import RecentCard from "./home-cards/RecentCard.astro";
+import TaxonomyCard from "./home-cards/TaxonomyCard.astro";
+import AuthorCard from "./home-cards/AuthorCard.astro";
+import ActivityCard from "./home-cards/ActivityCard.astro";
+
+const { locale, featureFlags } = Astro.props || {
+  locale: "zh-CN",
+  featureFlags: {},
+};
+
+// ── 首页卡片注册式装配 ────────────────────────────────────
+// taxonomy 卡片：主板只留模板骨架（panel-card + section-head），内容块经
+// home-card-taxonomy 槽位注册（search→快速搜索/标签云，collections→合集列表）。
+// activity 卡片：core 扫描 git 变化产原生条目（app/post/delete），插件
+// changeInterpreter 把各自数据文件变化解释为条目——全部并列同一列表。
+// 卡片流：home-card-flow 注册整卡。
+const TaxonomyBlocks = getPluginSlots('home-card-taxonomy', { featureFlags });
+const FlowCards = getPluginSlots('home-card-flow', { featureFlags });
+const t = (key: string) => getTranslation(locale, key);
+const routeLang = locale;
+const blogsPath = buildLocalizedPath(locale, "/blogs");
+const friendsPath = buildLocalizedPath(locale, "/friends");
+const aboutPath = buildLocalizedPath(locale, "/about");
+const settings = await loadSiteSettings();
+const profile = await loadSiteProfile();
+
+const siteTitle = settings?.siteName || "Chronicle";
+const authorName =
+  profile?.name ||
+  settings?.authorName ||
+  (t("home.defaultAuthorName") as string);
+const authorBio = profile?.bio || "";
+const authorAvatar = profile?.avatar || "";
+const authorAvatarSourceRaw = profile?.avatarSource || "";
+const authorAvatarSource =
+  authorAvatarSourceRaw &&
+  !authorAvatarSourceRaw.startsWith("/") &&
+  !authorAvatarSourceRaw.startsWith("http")
+    ? `/assets/${authorAvatarSourceRaw}`
+    : authorAvatarSourceRaw || authorAvatar;
+const cardSubtitle =
+  settings?.siteDescription || (t("home.cardSubtitle") as string);
+const cardAuthorLine = t("home.cardAuthorLine") as string;
+const isFriendsEnabled = featureFlags?.friendsPage !== false;
+
+// Icon glyphs (Lucide-style, stroke=currentColor) for the activity-card items.
+// Each type's colour is applied via `.activity-item__icon { color }`, so the
+// stroke inherits it through `currentColor`.
+const activityIcons = {
+  date: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  app: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  post: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+  stale:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  delete:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+  // 插件 tone（如 collections 的合集条目）——图标随 tone 查表，缺省回退 app 图标。
+  // collection 用 collections 插件在 nav-header 注册的同款图标（图层/堆叠），视觉统一。
+  collection:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M 12 2 L 21 8 L 12 14 L 3 8 Z"/><path d="M 18 14 L 21 16 L 12 22 L 3 16 L 6 14"/></svg>',
+};
+
+// Home footer site links (profile links + RSS + About). Separators are rendered
+// only *between* items, so disabling any item never leaves a dangling "·".
+type FooterLink = {
+  label: string;
+  href: string;
+  attrs: Record<string, string>;
+};
+const footerLinks: FooterLink[] = [
+  ...(profile?.links || []).map((l) => ({
+    label: l.label,
+    href: l.url,
+    attrs: { target: "_blank", rel: "noopener noreferrer" },
+  })),
+  ...(featureFlags?.rss !== false
+    ? [
+        {
+          label: t("home.rssSubscribe") as string,
+          href: withBase("/rss.xml"),
+          attrs: {
+            rel: "alternate nofollow",
+            type: "application/rss+xml",
+            target: "_blank",
+            title: t("home.rssSubscribe") as string,
+          },
+        },
+      ]
+    : []),
+  ...(featureFlags?.aboutPage !== false
+    ? [{ label: t("nav.about") as string, href: aboutPath, attrs: {} }]
+    : []),
+];
+
+// Homepage card visibility
+// taxonomy 卡片 = 模板骨架 + 注册块（home-card-taxonomy 槽位）——有注册块才显示；
+// 搜索/合集插件禁用或删除 → 块消失 → 卡片整体不渲染（无空标题）
+const cv = settings?.cardVisibility || {};
+const showAuthorCard = cv?.author !== false;
+const showTaxonomyCard =
+  cv?.taxonomy !== false && TaxonomyBlocks.length > 0;
+// activity 卡片：core 预设块恒有内容（更新时间 + 原生活动项）
+const showActivityCard = cv?.activity !== false;
+const isSingleColumn = settings?.singleColumnHomepage === true;
+
+// Right column is empty if all cards in it are hidden
+const rightColumnEmpty =
+  !showAuthorCard && !showTaxonomyCard && !showActivityCard;
+
+function interpolate(
+  template: string,
+  values: Record<string, string | number>,
+) {
+  return template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
+}
+
+function toPlainText(input: unknown) {
+  return String(input || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function pickSummary(post: any) {
+  const raw =
+    post?.summary ||
+    post?.excerpt ||
+    post?.description ||
+    post?.content ||
+    post?.html ||
+    "";
+  const text = toPlainText(raw);
+  if (!text) return t("home.noSummary") as string;
+  return text.slice(0, 140) + (text.length > 140 ? "…" : "");
+}
+
+function normalizeTag(tag: unknown) {
+  return String(tag || "")
+    .trim()
+    .replace(/^#+/, "")
+    .toLowerCase();
+}
+
+function isFeaturedTag(tag: unknown) {
+  const normalized = normalizeTag(tag);
+  return normalized === "featured" || normalized === "精选";
+}
+
+function canonicalTag(tag: unknown) {
+  return isFeaturedTag(tag) ? "featured" : normalizeTag(tag);
+}
+
+function safeDateValue(value: unknown) {
+  const date = new Date(String(value || ""));
+  return Number.isNaN(date.getTime()) ? new Date(0) : date;
+}
+
+function formatDate(date: Date, options: Intl.DateTimeFormatOptions = {}) {
+  return date.toLocaleDateString(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    ...options,
+  });
+}
+
+function buildPostUrl(postId: string) {
+  return buildLocalizedPath(routeLang, `/post/${encodeURIComponent(postId)}`);
+}
+
+function uniqueById(list: any[]) {
+  const seen = new Set<string>();
+  return list.filter((item) => {
+    const id = String(item?.id || "").trim();
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+let posts: any[] = [];
+let deckDataSource: any = null;
+
+// Local/filesystem mode: read directly from data/ (single source of truth)
+// 合集数据不在此读取——taxonomy 合集块由 collections 插件经 home-card-taxonomy
+// 槽位自读；activity 合集条目由插件 changeInterpreter 自解释（core 零合集逻辑）
+try {
+  const { dataSource } = await import("../data");
+  deckDataSource = dataSource;
+  posts = dataSource.getPublishedPosts().map((p: any) => ({
+    ...p,
+    content: undefined,
+    compiledHtml: undefined,
+  }));
+} catch (e) {
+  console.warn(
+    "[CardStyleHomeDeck] localDataSource fallback failed, posts empty",
+  );
+}
+
+const sortedPosts = [...posts].sort(
+  (a, b) => safeDateValue(b?.date).getTime() - safeDateValue(a?.date).getTime(),
+);
+const featuredPosts = sortedPosts
+  .filter((post) => Array.isArray(post?.tags) && post.tags.some(isFeaturedTag))
+  .slice(0, 5);
+// 首页卡片流只放最近 5 篇：整块卡片流在首屏折线下方，减少条数可直接
+// 缩小首屏 HTML/节点数（其余文章走“查看全部”）。
+const RECENT_POSTS_LIMIT = 5;
+const recentPosts = sortedPosts.slice(0, RECENT_POSTS_LIMIT);
+const leadPost = recentPosts[0] || featuredPosts[0] || null;
+const secondaryPosts = uniqueById([...featuredPosts, ...recentPosts])
+  .filter((post) => post?.id && post?.id !== leadPost?.id)
+  .slice(0, 4);
+
+const recommendedPosts = uniqueById([...featuredPosts, ...recentPosts])
+  .filter((post) => post?.id && post?.id !== leadPost?.id)
+  .slice(0, 3);
+
+// Recent updates (git-based) with a static fallback (recent posts, no collections/
+// friends). Fallback shares the exact same rendering — only the data differs:
+// the "last updated" label reads "Unknown" and the content list is static.
+// 插件动态（合集/友链等）由各插件 changeInterpreter 自解释后并列进同一列表——
+// core 只持有帖子/应用/删除动态，零插件数据语义。
+type RecentUpdatesData = {
+  latestCommitDate: string;
+  appUpdated: boolean;
+  changedPosts: { id: string; title: string; isNew: boolean }[];
+  deletedCount: number;
+};
+type ActivityItem = {
+  // tone 不限 core 预设（app/post/delete）——插件 changeInterpreter 可自定义
+  // （如 collections 的 'collection'）；图标/样式随 tone 查表（缺省回退）
+  tone: string;
+  label?: string;
+  title: string;
+  href?: string;
+  external?: boolean;
+};
+// Clamp settings-sourced day counts to safe positive integers — a 0/negative/
+// non-numeric value in site.yml must not silently empty the window or flip the
+// stale flag permanently.
+function sanitizeDays(value: unknown, fallback: number): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback;
+}
+const staleDays = sanitizeDays(settings?.recentUpdates?.staleDays, 30);
+const aggregateDays = sanitizeDays(settings?.recentUpdates?.aggregateDays, 7);
+// Fixed changelog target for the "App updated" activity item.
+const appChangelogUrl =
+  "https://github.com/vanvanhasnophi/chronicle-aurora/commits/main/";
+
+let recentUpdates: RecentUpdatesData | null = null;
+try {
+  const { getRecentUpdates } = await import("../utils/recentUpdates");
+  recentUpdates = await getRecentUpdates({
+    posts,
+    aggregateDays,
+  });
+} catch {
+  recentUpdates = null;
+}
+
+const updateTimeLabel = recentUpdates
+  ? formatDate(safeDateValue(recentUpdates.latestCommitDate))
+  : (t("home.unknownTime") as string);
+const isStale = 
+  !!recentUpdates &&
+  Date.now() - safeDateValue(recentUpdates.latestCommitDate).getTime() >
+    staleDays * 86400000;
+
+// Unified content list — same shape for the git-derived (fresh) and the static
+// fallback feed, so the markup renders identically in both cases.
+// 条目 = core 原生（app/post/delete）+ 插件 changeInterpreter 产物（并列同一列表）
+const activityItems: ActivityItem[] = [];
+if (recentUpdates) {
+  if (recentUpdates.appUpdated) {
+    activityItems.push({
+      tone: "app",
+      title: t("home.updatedApp") as string,
+      href: appChangelogUrl,
+      external: true,
+    });
+  }
+  for (const p of recentUpdates.changedPosts) {
+    activityItems.push({
+      tone: "post",
+      label: (p.isNew ? t("home.newPost") : t("home.updatedPost")) as string,
+      title: p.title,
+      href: buildPostUrl(p.id),
+    });
+  }
+  if (recentUpdates.deletedCount > 0) {
+    activityItems.push({
+      tone: "delete",
+      title: interpolate(t("home.deletedPosts") as string, {
+        count: recentUpdates.deletedCount,
+      }),
+    });
+  }
+  // 插件 changeInterpreter 产物（如 collections.yml → 新增合集）——与原生条目并列
+} else {
+  for (const post of recentPosts.slice(0, 3)) {
+    activityItems.push({
+      tone: "post",
+      label: t("home.recentPublished") as string,
+      title: post.title,
+      href: buildPostUrl(post.id),
+    });
+  }
+}
+
+// 分发 data/ 变化给插件解释器 → 产物追加到同一列表（并列，不单独成块）
+// ctx 带非 posts/ yml 的内容 diff（YAML-as-DataSource 通道）+ 仓库上下文
+if (recentUpdates?.changedFiles?.length && deckDataSource) {
+  const { interpretChanges } = await import("../plugins");
+  activityItems.push(
+    ...interpretChanges(recentUpdates.changedFiles, {
+      dataSource: deckDataSource,
+      t,
+      locale,
+      root: recentUpdates.root,
+      baseCommit: recentUpdates.baseCommit,
+      yamlFileChanges: recentUpdates.yamlFileChanges,
+    }),
+  );
+}
+
+const authorInitials =
+  authorName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((item: string) => item[0])
+    .join("") || "C";
+
+const yearLabel = new Date().getFullYear();
+
+// ── Homepage columns (3.2) ───────────────────────────────
+// site.yml homepage.columns wins; otherwise the legacy two-column layout
+// (cardVisibility + singleColumnHomepage) is derived into the same shape.
+const cardComponents: Record<string, any> = {
+  intro: IntroCard,
+  recent: RecentCard,
+  taxonomy: TaxonomyCard,
+  author: AuthorCard,
+  activity: ActivityCard,
+};
+
+const legacyCards = (ids: string[]) =>
+  ids.filter((id) => {
+    if (id === 'taxonomy') return showTaxonomyCard && TaxonomyBlocks.length > 0;
+    if (id === 'author') return showAuthorCard;
+    if (id === 'activity') return showActivityCard;
+    return true;
+  });
+
+const legacyColumns = isSingleColumn
+  ? [{ width: 300, cards: legacyCards(['intro', 'recent', 'taxonomy', 'author', 'activity']) }]
+  : [
+      { width: 300, cards: legacyCards(['intro', 'recent']) },
+      { width: 200, cards: legacyCards(['author', 'taxonomy', 'activity']) },
+    ];
+
+const configuredColumns =
+  Array.isArray(settings?.cardColumns) && settings.cardColumns.length ? settings.cardColumns : null;
+
+const columns = (configuredColumns ?? legacyColumns)
+  .map((column: any) => ({
+    width: Number(column?.width),
+    maxWidth: Number(column?.maxWidth),
+    cards: legacyCards(
+      Array.isArray(column?.cards)
+        ? column.cards.filter((entry: any) => entry && typeof entry.type === 'string')
+        : [],
+    ),
+  }))
+  .filter((column: any) => column.cards.length > 0);
+
+if (columns.length === 0) {
+  columns.push({ width: NaN, maxWidth: NaN, cards: legacyCards(['intro', 'recent']) });
+}
+
+const columnCount = Math.min(columns.length, 3);
+const columnWidths = columns.map((column: any) =>
+  Number.isFinite(column.width) && column.width > 0 ? column.width : 1,
+);
+const defaultTwoWidths = [1.45, 0.85];
+const widths =
+  columnCount === 2 && columnWidths.length === 2 && columns.every((column: any) => !(Number(column.width) > 0))
+    ? defaultTwoWidths
+    : columnWidths;
+let gridStyle = '--home-cols:1fr';
+if (columnCount === 2) gridStyle = `--home-cols:${widths[0]}fr ${widths[1]}fr`;
+if (columnCount === 3) {
+  gridStyle = `--home-cols:${widths[0]}fr ${widths[1]}fr ${widths[2]}fr;--home-cols-2:${widths[0]}fr ${widths[1]}fr`;
+}
+
+const cardProps: Record<string, Record<string, unknown>> = {
+  intro: {
+    siteTitle,
+    subtitle: cardSubtitle,
+    leadHref: leadPost ? buildPostUrl(leadPost.id) : blogsPath,
+    blogsHref: blogsPath,
+    t,
+  },
+  recent: { posts: recentPosts, blogsHref: blogsPath, locale, t },
+  taxonomy: { blocks: TaxonomyBlocks, locale, t },
+  author: {
+    name: authorName,
+    bio: authorBio,
+    avatar: authorAvatar,
+    avatarSource: authorAvatarSource,
+    initials: authorInitials,
+    fallbackLine: cardAuthorLine,
+    t,
+  },
+  activity: { items: activityItems, updateTimeLabel, isStale, icons: activityIcons, t },
+};
+---
+
+<section
+  class="home-shell"
+  style={Number.isFinite(Number(settings?.cardFlowMaxWidth)) && Number(settings?.cardFlowMaxWidth) > 0
+    ? `max-width:${Number(settings?.cardFlowMaxWidth)}px`
+    : undefined}
+>
+  <div
+    class="card-flows"
+    class:list={[{ "single-col": columnCount === 1 }]}
+    data-columns={columnCount}
+    style={gridStyle}
+  >
+    {columns.map((column, index) => (
+      <div
+        class:list={["flow-column", index === 0 ? "flow-column--left" : "flow-column--right"]}
+        style={Number.isFinite(column.maxWidth) && column.maxWidth > 0
+          ? `width:100%;max-width:${column.maxWidth}px;margin-inline:auto;`
+          : undefined}
+      >
+        {column.cards.map((card: any) => {
+          const id = card.type;
+          const Card = cardComponents[id];
+          return Card ? (
+            <div class="home-card-slot" data-card-id={id} data-column={index}>
+              <Card {...cardProps[id]} />
+            </div>
+          ) : null;
+        })}
+        {index === 0 && FlowCards.map((Card: any) => (
+          <div class="home-card-slot" data-card-id="plugin" data-column="0">
+            <Card locale={locale} t={t} />
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>
+
+  <footer class="panel-card mtl-container home-footer">
+    <div class="home-footer__links">
+      <nav class="home-footer__nav" aria-label={t("home.siteLinksAria")}>
+        {
+          footerLinks.map((link, i) => (
+            <>
+              {i > 0 ? <span class="home-footer__sep">·</span> : null}
+              <a href={link.href} {...link.attrs}>
+                {link.label}
+              </a>
+            </>
+          ))
+        }
+      </nav>
+    </div>
+
+    <div class="home-footer__meta">
+      <div>
+        © {__YEAR__}&nbsp;
+        {siteTitle} · All rights reserved · Powered by Chronicle Aurora v{
+          __VERSION__
+        }
+      </div>
+      {
+        settings?.icpNumber ? (
+          <div>
+            备案号：
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {settings.icpNumber}
+            </a>
+          </div>
+        ) : null
+      }
+    </div>
+  </footer>
+</section>
+
+
+
+<script>
+  // Responsive column overflow: when the viewport cannot fit every configured
+  // column, cards from the dropped columns append to the last surviving column.
+  // Pure CSS cannot move cards between columns.
+  (() => {
+    function init() {
+      const flows = document.querySelector('.card-flows');
+      if (!flows || flows.dataset.columnLayout === '1') return;
+      const columns = [...flows.querySelectorAll('.flow-column')];
+      if (columns.length < 2) return;
+
+      const slots = [...flows.querySelectorAll('.home-card-slot')];
+      const configured = columns.length;
+      // Capture the SSR widths once: this runs from both DOMContentLoaded and
+      // astro:page-load, and a second run would otherwise read back the already
+      // collapsed `1fr` value and never restore the wide layout.
+      if (!flows.dataset.baseCols) {
+        flows.dataset.baseCols = flows.style.getPropertyValue('--home-cols').trim();
+      }
+      if (!flows.dataset.twoCols) {
+        flows.dataset.twoCols = flows.style.getPropertyValue('--home-cols-2').trim();
+      }
+      const baseCols = flows.dataset.baseCols;
+      const twoCols = flows.dataset.twoCols;
+      const original = columns.map((_, index) =>
+        slots.filter((slot) => Number(slot.dataset.column) === index),
+      );
+
+      const layout = () => {
+        const width = window.innerWidth;
+        const target = width <= 900 ? 1 : configured >= 3 && width <= 1200 ? 2 : configured;
+        const visible = original.slice(0, target).map((list) => [...list]);
+        const dropped = original.slice(target).flat();
+
+        if (dropped.length) {
+          // Dropped columns append to the last surviving column, end-to-end.
+          visible[target - 1].push(...dropped);
+        }
+
+        columns.forEach((column, index) => {
+          column.hidden = index >= target;
+          while (column.firstChild) column.removeChild(column.firstChild);
+        });
+        visible.forEach((list, index) => {
+          list.forEach((slot) => columns[index].appendChild(slot));
+        });
+
+        flows.dataset.columns = String(target);
+        flows.style.setProperty(
+          '--home-cols',
+          target === 1 ? '1fr' : target === 2 ? twoCols || baseCols : baseCols,
+        );
+      };
+
+      layout();
+      flows.dataset.columnLayout = '1';
+      const onResize = () => window.requestAnimationFrame(layout);
+      window.addEventListener('resize', onResize, { passive: true });
+    }
+
+    document.addEventListener('astro:page-load', init);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+    else init();
+  })();
+</script>

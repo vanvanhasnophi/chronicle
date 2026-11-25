@@ -1,0 +1,1703 @@
+/*
+ * Chronicle — Shared Markdown Rendering Stylesheet
+ *
+ * Used by both template-astro (SSG published pages) and manager (CMS preview).
+ * The two rendering pipelines (chronicleMarkdown.ts / markdownPreview.ts) produce
+ * identical HTML, so a single stylesheet guarantees visual parity.
+ *
+ * Convention:
+ *   Wrap rendered HTML in a container with class "chr-md".
+ *   All selectors are scoped under .chr-md to avoid leakage.
+ *
+ * CSS variables (required — defined in global.css):
+ *   --app-text-pri / --app-text-sec
+ *   --comp-bg / --comp-bg-hvr / --comp-bg-active
+ *   --comp-bg-blur / --comp-bg-glass
+ *   --comp-bg
+ *   --comp-text-pri / --comp-text-sec
+ *   --border-color / --border-color-blur
+ *   --accent / --accent-hvr / --accent-dark
+ *   --code-bg / --code-text
+ *   --code-keyword / --code-string / --code-comment / --code-number / --code-boolean
+ *   --code-operator / --code-tag / --code-attribute / --code-property / --code-selector
+ *   --code-type / --code-variable / --code-parameter / --code-cmdlet / --code-directive
+ *   --code-preprocessor / --code-color / --code-section / --code-date / --code-quote
+ *   --code-header / --code-inline / --code-link
+ *   --code-katexcommand / --code-katexnumber / --code-katexoperator / --code-katexbracket
+ *   --featured / --status-error
+ *   --shadow-elev-1 / --shadow-elev-2 / --shadow-elev-3
+ *   --app-font-stack / --app-font-stack-inter / --app-font-stack-serif
+ *   --toc-scroll-offset
+ *
+ * Keep in sync with:
+ *   packages/manager/src/utils/markdownPreview.ts
+ *   packages/template-astro/src/utils/chronicleMarkdown.ts
+ */
+
+/* ═══════════════════════════════════════════════════════════
+   1. Container
+   ═══════════════════════════════════════════════════════════ */
+
+.chr-md {
+  color: var(--app-text-pri);
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+/* Active block highlight (cursor in editor → corresponding preview block) */
+.chr-md .active-block {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 6px;
+  transition: outline-color 0.3s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   2. Headings
+   ═══════════════════════════════════════════════════════════ */
+
+.chr-md h1,
+.chr-md h2,
+.chr-md h3,
+.chr-md h4,
+.chr-md h5,
+.chr-md h6 {
+  margin: 1rem 0 1.2rem 0;
+  font-weight: 600;
+  font-variation-settings: 'wght' 600;
+  line-height: 1.3;
+  color: var(--app-text-pri);
+  scroll-margin-top: var(--toc-scroll-offset, 84px);
+}
+
+.chr-md h1 { font-size: 2rem; padding-bottom: 0.5rem; margin-top: 2.5rem; }
+.chr-md h2 { font-size: 1.75rem; margin-top: 2.2rem; }
+.chr-md h3 { font-size: 1.5rem; margin-top: 1.8rem; }
+.chr-md h4 { font-size: 1.3rem; margin-top: 1.6rem; }
+.chr-md h5 { font-size: 1.15rem; margin-top: 1.4rem; }
+/* h6 lands on body size: differentiate by tone + tracking instead of size
+   (the old 1.1rem was only 1.6px above body and read as bold text). */
+.chr-md h6 {
+  font-size: 1rem;
+  margin-top: 1.2rem;
+  color: var(--app-text-sec);
+  letter-spacing: 0.02em;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   3. Paragraphs & Lists
+   ═══════════════════════════════════════════════════════════ */
+
+.chr-md p {
+  margin-bottom: 1.2rem;
+  margin-top: 0;
+  line-height: 1.7;
+}
+
+.chr-md ul,
+.chr-md ol {
+  margin-bottom: 1.2rem;
+  margin-top: 0;
+  padding-left: 2rem;
+}
+
+.chr-md li {
+  margin: 0.6rem 0;
+  line-height: 1.4;
+}
+
+.chr-md li::marker {
+  color: color-mix(in srgb, transparent 50%, var(--app-text-pri));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   4. Inline Elements
+   ═══════════════════════════════════════════════════════════ */
+
+/* Inline code (not inside code-chunk)
+   No chip background — the accent-tinted ink alone marks it as code.
+   --code-bg / --code-text stay reserved for editor syntax highlighting
+   (CmEditor .cm-md-code) and danger tints, not prose. */
+.chr-md code:not(.code-chunk-container code):not(pre code) {
+  color: color-mix(in srgb, var(--accent) 20%, var(--app-text-pri));
+  padding: 0.2em 0.3em;
+  font-size: 0.9em;
+  font-family: var(--app-font-stack-mono);
+  font-weight: 500;
+  vertical-align: baseline;
+}
+
+.chr-md i,
+.chr-md em {
+  font-style: italic;
+}
+
+.chr-md strong,
+.chr-md b {
+  font-weight: bold;
+  font-variation-settings: 'wght' 700;
+}
+
+.chr-md s,
+.chr-md del {
+  opacity: .6;
+}
+
+/* Links — --accent is tuned for dark surfaces and --accent-dark for light
+   ones, so pick per used color-scheme (both apps set `color-scheme`).
+   The plain declarations before each light-dark() are the fallback for
+   engines without light-dark(): same colors as before this rule. */
+.chr-md a {
+  color: var(--accent);
+  color: light-dark(var(--accent-dark), var(--accent));
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.chr-md a:hover {
+  text-decoration: underline;
+  color: var(--accent-dark);
+  color: light-dark(
+    color-mix(in srgb, var(--accent) 65%, #000),
+    color-mix(in srgb, var(--accent) 80%, #fff)
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   5. Block Elements
+   ═══════════════════════════════════════════════════════════ */
+
+/* Blockquote — no surface, no radius: a single 2px rail in a muted accent tint
+   marks the block and the body drops one step to secondary text. Nesting adds
+   indentation (and its own rail) instead of stacking containers. Horizontal
+   padding is symmetric so wide children (tables, code) stop before the rail
+   rather than running to the article's right edge. */
+.chr-md blockquote {
+  margin: 1.75rem 0;
+  padding: 0 1.15rem;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 38%, var(--comp-text-sec));
+  color: var(--comp-text-sec);
+}
+
+/* Prose rhythm inside a quote: reset the children's own margins, then add one
+   consistent gap between blocks (paragraphs, lists, tables, nested quotes).
+   `> *` and `> * + *` share specificity with `.chr-md p` above, so order wins. */
+.chr-md blockquote > * { margin: 0; }
+.chr-md blockquote > * + * { margin-top: 0.8em; }
+
+.chr-md blockquote p{
+  line-height: 1.65;
+}
+
+/* Nested quotes: more indent on a quieter rail. */
+.chr-md blockquote blockquote {
+  margin: 0.8em 0 0;
+  padding-left: 1.15rem;
+  border-left-color: color-mix(in srgb, var(--accent) 22%, var(--comp-text-sec));
+}
+
+/* Quotes that live inside a list item shouldn't tear the list apart. */
+.chr-md li > blockquote {
+  margin: 0.5em 0;
+}
+
+/* Alerts (GitHub `> [!NOTE]`) — the quote keeps its rail and gains a type tint
+   plus a title line. The palette is deliberately independent of the theme
+   accent so "warning" never reads as a brand colour. */
+.chr-md blockquote[data-alert] {
+  padding: 0.7rem 1.15rem;
+  border-left-color: var(--alert-color);
+  background: color-mix(in srgb, var(--alert-color) 7%, transparent);
+}
+
+.chr-md blockquote[data-alert="note"] { --alert-color: #3b82f6; }
+.chr-md blockquote[data-alert="tip"] { --alert-color: #10b981; }
+.chr-md blockquote[data-alert="important"] { --alert-color: #8b5cf6; }
+.chr-md blockquote[data-alert="warning"] { --alert-color: #f59e0b; }
+.chr-md blockquote[data-alert="caution"] { --alert-color: #ef4444; }
+
+.chr-md .md-alert-title {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--alert-color, var(--accent));
+}
+
+.chr-md hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 1.5em 0;
+}
+
+/* Collapsible sections — mirror .toc-inline exactly: same glass surface,
+   10px radius, 10/14 padding, 1em/600 title, 16px secondary chevron on the
+   right, 0.25s open animation.  The chevron is the TOC's SVG path turned
+   into a mask so it can inherit --app-text-sec. */
+.chr-md details {
+  margin: 1.5rem 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color-blur);
+  border-radius: 10px;
+  background: var(--comp-bg-glass);
+  box-shadow: var(--glass-shadow-elev-1);
+  overflow: hidden;
+}
+
+/* Summary keeps the normal 1em title size; the ::details-content box carries
+   the 0.9em for the revealed body, so headings inside keep their own scale. */
+.chr-md details::details-content {
+  font-size: 0.9em;
+}
+
+.chr-md summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  list-style: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variation-settings: 'wght' 600;
+  line-height: 1.5;
+  color: var(--app-text-pri);
+  user-select: none;
+  /* 展开/收起时 summary 与正文的 8px 间距跟随 ::details-content 一起过渡 */
+  transition: margin-bottom .25s ease;
+}
+
+.chr-md summary::-webkit-details-marker {
+  display: none;
+}
+
+.chr-md summary::marker {
+  content: '';
+}
+
+.chr-md .md-details-chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--app-text-sec);
+  transform: rotate(-90deg);
+  transition: transform .18s ease;
+}
+
+.chr-md details[open] .md-details-chevron {
+  transform: rotate(0deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chr-md .md-details-chevron {
+    transition: none;
+  }
+}
+
+.chr-md summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* TOC body starts 8px below its summary; details has no wrapper, so put the
+   gap on the summary itself (works for parsed blocks and raw text) and zero
+   the first block's margin to avoid doubling it. Only when open, so the
+   closed height stays unchanged. */
+.chr-md details[open] > summary {
+  margin-bottom: 8px;
+}
+.chr-md details > summary + * {
+  margin-top: 0;
+}
+
+.chr-md details > :last-child {
+  margin-bottom: 0;
+}
+
+/* Native equivalent of the TOC's 0fr→1fr + fade.  Browsers without
+   ::details-content / interpolate-size fall back to an instant toggle. */
+.chr-md details::details-content {
+  block-size: 0;
+  overflow: hidden;
+  opacity: 0;
+  interpolate-size: allow-keywords;
+  transition: block-size .25s ease, opacity .25s ease, content-visibility .25s;
+  transition-behavior: allow-discrete;
+}
+
+.chr-md details[open]::details-content {
+  block-size: auto;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chr-md details::details-content {
+    transition: none;
+  }
+  .chr-md summary {
+    transition: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   6. Tables
+   ═══════════════════════════════════════════════════════════ */
+
+/* Rounded frame — needs `separate` borders: with `collapse`, the table's
+   own 1px border is painted square over the radius (and the square cell
+   borders merge into it).  Outer cell edges are dropped, inner grid stays. */
+.chr-md table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  box-sizing: border-box;
+  margin: 1.8rem 0;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.chr-md th,
+.chr-md td {
+  border: 0;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: .5em .75em;
+  text-align: left;
+  font-size: .9em;
+}
+
+.chr-md th {
+  background: color-mix(in srgb, var(--app-text-pri) 8%, transparent);
+  font-weight: 600;
+  font-variation-settings: 'wght' 600;
+  color: var(--app-text-pri);
+}
+
+/* Border + header tint define the table; body rows sit on the page surface
+   (the site's background overlay already carries text contrast), so no
+   per-cell fill — and no tbody/td double-alpha question. */
+.chr-md td {
+  background: transparent;
+}
+
+.chr-md th:last-child,
+.chr-md td:last-child {
+  border-right: 0;
+}
+
+.chr-md tr:last-child th,
+.chr-md tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Table cells run at .9em; keep inline code there at cell size instead of
+   compounding to .9 × .9 = .81em (~13px). */
+.chr-md th code,
+.chr-md td code {
+  font-size: 1em;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   7. Image Wrapper (renderImageWrapper)
+   ═══════════════════════════════════════════════════════════ */
+
+.chr-md .md-image-container {
+  display: block;
+  margin: 1em auto;
+  width: 100%;
+  text-align: center;
+  max-width: 100%;
+}
+
+.chr-md .md-image-wrapper {
+  display: block;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  max-width: 100%;
+  width: fit-content;
+  box-sizing: border-box;
+  background-color: var(--comp-bg-glass);
+}
+
+/* During loading (before .loaded is added to <img>), reserve a 2:1
+   placeholder so the page layout doesn't collapse. Once the image loads,
+   the wrapper resizes to the image's natural aspect ratio. */
+.chr-md .md-image-wrapper:not(:has(.md-image.loaded)):not([data-error="1"]) {
+  aspect-ratio: 2 / 1;
+}
+
+
+.chr-md .md-placeholder-text {
+  display: none;
+}
+
+/* Loading + broken-image states — visible when img is loading or failed;
+   hidden when img (z:1) successfully loads and covers them. */
+.chr-md .md-image-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--comp-bg-glass);
+}
+
+.chr-md .md-image-wrapper::before {
+  content: 'Loading...';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-sec);
+  font-family: var(--app-font-stack);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* onerror triggers data-error — override Loading → Image not found */
+.chr-md .md-image-wrapper[data-error="1"]::before {
+  content: 'Image not found';
+  color: var(--status-error);
+}
+
+.chr-md .md-image-wrapper .md-image {
+  position: relative;
+  z-index: 1;
+}
+
+.chr-md .md-image-caption {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: var(--comp-text-sec);
+  text-align: center;
+  font-family: var(--app-font-stack);
+  width: 100%;
+}
+
+.chr-md .md-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  display: block;
+  cursor: zoom-in;
+  object-fit: fill;
+  opacity: 0;
+  filter: blur(10px);
+  transition: opacity 0.3s ease, filter 0.3s ease-out;
+}
+
+/* Height-only hint with no known aspect ratio (external URL, CMS preview): the
+   wrapper is column-wide with a fixed height, so filling it would stretch the
+   image. Letterbox instead. */
+.chr-md .md-image-contain {
+  object-fit: contain;
+}
+
+.chr-md .md-image.loaded {
+  opacity: 1;
+  filter: blur(0);
+}
+
+/* Images that belong to a text line stay inline: badges inside a link
+   (`[![badge](img)](url)`) and icons sharing a line with prose
+   (`Text ![icon](a.png) more`). They are glyphs on the text baseline, not
+   figures — no wrapper, no caption, no 2:1 placeholder, no blur-in.
+   Must come after .md-image to win the width/height/display reset. */
+.chr-md .md-image-inline {
+  display: inline-block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  margin: 0 2px;
+  border-radius: 8px;
+  vertical-align: middle;
+  opacity: 1;
+  filter: none;
+  object-fit: contain;
+}
+
+/* Badges are small and sit flush against text — no rounding. */
+.chr-md a > .md-image-inline {
+  border: 0;
+  border-radius: 0;
+  text-decoration: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   8. File Card (renderFileCard)
+   ═══════════════════════════════════════════════════════════ */
+
+.chr-md .file-card {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--comp-bg-glass);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  max-width: 240px;
+}
+
+.chr-md .file-card:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.chr-md .file-card:active {
+  transform: translateY(0);
+}
+
+.chr-md .file-card:hover {
+  background-color: var(--comp-bg-glass-hl);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-elev-1);
+  text-decoration: none;
+}
+
+.chr-md .file-card-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--comp-text-pri);
+  flex-shrink: 0;
+}
+
+.chr-md .file-card:hover .file-card-icon {
+  color: var(--accent);
+}
+
+.chr-md .file-card-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.chr-md .file-card-title {
+  font-size: 14px;
+  color: var(--comp-text-pri);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chr-md .file-card-subtitle {
+  font-size: 11px;
+  color: var(--comp-text-sec);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mini card — a card that shares its line with prose. One line: icon + name,
+   no subtitle, no hover lift (a translateY inside a text line jitters the
+   baseline). The full block card is for a card alone on its line. */
+.chr-md .file-card-mini {
+  display: inline-flex;
+  align-items: center;
+  height: 1.7em;
+  padding: 0 0.6em;
+  margin: 0 0.4em;
+  border-radius: 6px;
+  font-size: 0.85em;
+  line-height: 1;
+  vertical-align: -0.2em;
+  max-width: 100%;
+}
+
+.chr-md .file-card-mini:hover,
+.chr-md .file-card-mini:active,
+.chr-md .file-card-mini:focus {
+  transform: none;
+}
+
+.chr-md .file-card-mini .file-card-icon {
+  width: 1em;
+  height: 1em;
+  margin-right: 0.35em;
+}
+
+.chr-md .file-card-mini .file-card-icon svg {
+  width: 1em;
+  height: 1em;
+}
+
+.chr-md .file-card-mini .file-card-title {
+  font-size: inherit;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   9. CodeChunk Container (renderCodeChunkHtml)
+   ═══════════════════════════════════════════════════════════ */
+
+.chr-md .code-chunk-container {
+  display: flex;
+  flex-direction: column;
+  /* inset 材质：暗色更黑、亮色更白；边框 + 内阴影暗示“压在纸面里”。 */
+  background: var(--comp-bg-inset);
+  border: 1px solid var(--border-color);
+  color: var(--app-text-pri);
+  font-family: var(--app-font-stack-mono);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 8px 0;
+  box-shadow: var(--comp-inset-shadow);
+}
+
+.chr-md .editor-header {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: .2rem 1rem;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 0.92rem;
+  font-family: var(--app-font-stack);
+}
+
+.chr-md .toolbar {
+  display: flex;
+  flex-direction: row;
+  gap: 0.2rem;
+  min-height: 22px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.chr-md .editor-wrapper {
+  display: flex;
+  overflow: auto;
+  width: 100%;
+}
+
+.chr-md .editor-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.chr-md .code-textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0.7rem 1.5rem 1.2rem 1.5rem;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--app-text-pri);
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 13.5px;
+  line-height: 1.3em;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+/* Read-only textarea (non-mermaid): hide the overlay so only highlighted pre is visible */
+.chr-md .code-chunk-container:not(.mermaid) .code-textarea:read-only {
+  display: none;
+}
+
+.chr-md .syntax-hl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  border: none;
+  color: var(--comp-text-pri);
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.3em;
+  overflow: auto;
+  tab-size: 2;
+  vertical-align: top;
+  z-index: 0;
+  letter-spacing: normal;
+}
+
+.chr-md .syntax-hl::-webkit-scrollbar {
+  cursor: default;
+  width: 8px;
+  height: 8px;
+}
+
+
+.chr-md .icon-btn {
+  background: transparent;
+  color: var(--comp-text-sec);
+  border: none;
+  padding: .2rem 0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.chr-md .icon-btn:hover {
+  color: var(--app-text-pri);
+}
+
+/* Success icon hidden at rest — otherwise the copy button renders both icons
+   (46px) until article.ts's post-load "reset copy buttons" hides it via inline
+   style, shrinking it to 28px → layout shift. Hiding it in CSS makes the
+   first paint the final state; the copy animation still shows it via inline
+   display:block (inline style wins). */
+.chr-md .icon-btn .success-icon {
+  display: none;
+}
+
+.chr-md .icon-btn.active {
+  background: var(--active);
+  color: var(--app-text-pri);
+}
+
+.chr-md .language-label {
+  color: var(--comp-text-pri);
+  font-size: 0.91em;
+  font-family: var(--app-font-stack);
+  padding: 0 0.2em;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+
+.chr-md .editor-footer {
+  color: var(--comp-text-sec);
+  padding: 0.1rem 1rem 0.2rem 1rem;
+  font-size: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  flex-shrink: 0;
+  font-family: var(--app-font-stack);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   10. KaTeX
+   ═══════════════════════════════════════════════════════════ */
+
+.chr-md .katex-interactive {
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: 4px;
+}
+
+.chr-md .katex {
+  color: var(--app-text-pri) !important;
+  cursor: pointer;
+}
+
+.chr-md .katex-html {
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.chr-md .katex .katex-html {
+  padding: 0.15em;
+}
+
+.chr-md .katex-html:hover {
+  background: var(--hover);
+}
+
+.chr-md .katex-display .katex-html {
+  min-height: 40px;
+  align-content: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.chr-md .katex-display .katex-html::-webkit-scrollbar {
+  height: 2px;
+  width: 2px;
+  background: transparent;
+}
+
+.chr-md .katex-display .katex-html::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--comp-text-sec) 50%, transparent);
+}
+
+.chr-md .katex-display .katex-html::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--comp-text-pri) 50%, transparent);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   11. Mermaid
+   ═══════════════════════════════════════════════════════════ */
+
+/* Mermaid toolbar layout */
+.chr-md .code-chunk-container .mermaid-group {
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+.chr-md .code-chunk-container .toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-color);
+  margin: 0 0.45rem;
+}
+
+/* Mermaid split layout */
+.chr-md .code-chunk-container.mermaid.mermaid-split {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.chr-md .code-chunk-container.mermaid.mermaid-split > .editor-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.chr-md .code-chunk-container.mermaid.mermaid-split > .mermaid-preview {
+  flex: 1;
+  min-width: 0;
+  display: block !important;
+}
+
+/* Mermaid preview panel */
+.chr-md .mermaid-preview {
+  background: var(--comp-bg-glass);
+  border-top: 1px solid var(--border-color);
+  max-height: 420px;
+  overflow: auto;
+  font-family: var(--app-font-stack) !important;
+}
+
+.chr-md .mermaid-preview svg {
+  background: transparent !important;
+}
+
+.chr-md .mermaid-preview svg,
+.chr-md .mermaid-preview svg * {
+  font-family: inherit !important;
+}
+
+/* Mermaid sizes an HTML label from ITS OWN font metrics, then the rules above
+   render it with `font-family: inherit`. When the two disagree (custom app font
+   stack, subsetted webfont) the box ends up a few pixels too narrow and the
+   default `overflow: hidden` of <foreignObject> cuts the tail of the text —
+   "Write Markdowr", "Deploy to CDN" with half an N. Let the label spill out of
+   its box instead of clipping it; the configured font is aligned in article.ts
+   as well, so the box is normally right and this only absorbs rounding. */
+.chr-md .mermaid-preview svg foreignObject,
+.chr-md .mermaid-svg svg foreignObject,
+.chr-md .mermaid-preview svg text,
+.chr-md .mermaid-svg svg text {
+  overflow: visible;
+}
+
+/* Node labels sit one step below body text so boxes stay compact and the
+   diagram matches the surrounding type scale. Mermaid 11 puts the HTML label in
+   an unclassed <div> inside <foreignObject>, so target it structurally; older
+   output uses a classed .nodeLabel / <text>. */
+.chr-md .mermaid-preview svg foreignObject > div,
+.chr-md .mermaid-preview svg foreignObject > span,
+.chr-md .mermaid-preview svg .nodeLabel,
+.chr-md .mermaid-preview svg .edgeLabel,
+.chr-md .mermaid-svg svg foreignObject > div,
+.chr-md .mermaid-svg svg foreignObject > span,
+.chr-md .mermaid-svg svg .nodeLabel,
+.chr-md .mermaid-svg svg .edgeLabel {
+  font-size: 0.98em;
+}
+
+.chr-md .mermaid-loading {
+  color: var(--comp-text-sec);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+}
+
+.chr-md .mermaid-error {
+  color: var(--status-error);
+  padding: 12px;
+  background: var(--status-error-bg);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.chr-md .mermaid-svg {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.chr-md .mermaid-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mermaid SVG theme overrides (dark theme compatible) */
+.chr-md .mermaid-preview svg rect {
+  fill: var(--comp-bg-glass) !important;
+  stroke: var(--app-text-pri) !important;
+}
+
+.chr-md .mermaid-preview svg path {
+  stroke: var(--comp-text-pri) !important;
+}
+
+.chr-md .mermaid-preview svg text {
+  fill: var(--comp-text-pri) !important;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif !important;
+}
+
+.chr-md .mermaid-preview svg .node rect,
+.chr-md .mermaid-preview svg .node circle,
+.chr-md .mermaid-preview svg .node ellipse,
+.chr-md .mermaid-preview svg .node polygon,
+.chr-md .mermaid-preview svg .cluster rect,
+.chr-md .mermaid-preview svg .label-container rect,
+.chr-md .mermaid-preview svg .actor,
+.chr-md .mermaid-preview svg .task,
+.chr-md .mermaid-preview svg .section,
+.chr-md .mermaid-preview svg .arrow,
+.chr-md .mermaid-preview svg .legend rect {
+  fill: var(--comp-bg-glass) !important;
+  stroke: var(--comp-text-sec) !important;
+}
+
+.chr-md .mermaid-preview svg .edgePath path,
+.chr-md .mermaid-preview svg .flowchart-link,
+.chr-md .mermaid-preview svg .relation,
+.chr-md .mermaid-preview svg .marker path {
+  fill: none !important;
+  stroke: var(--comp-text-pri) !important;
+}
+
+.chr-md .mermaid-preview svg .nodeLabel,
+.chr-md .mermaid-preview svg .label,
+.chr-md .mermaid-preview svg .messageText,
+.chr-md .mermaid-preview svg .legend text {
+  fill: var(--comp-text-pri) !important;
+  color: var(--comp-text-pri) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   12. Math Tooltip
+   Global rules — the tooltip is appended to document.body so
+   these must NOT be scoped under .chr-md.
+   ═══════════════════════════════════════════════════════════ */
+
+.math-tooltip {
+  position: fixed !important;
+  opacity: 1;
+  z-index: 1200;
+  min-width: 400px;
+  width: 400px;
+  height: fit-content;
+  max-height: 200px;
+  padding: 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--comp-bg-blur);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+.math-tooltip.is-hidden {
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+.math-tooltip-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.math-tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.4rem;
+}
+
+.math-tooltip-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--app-text-sec);
+}
+
+.math-tooltip-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.math-tooltip-action {
+  background: transparent;
+  border: none;
+  color: var(--app-text-sec);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+.math-tooltip-action:hover {
+  color: var(--app-text-pri);
+  background: var(--hover);
+}
+
+.math-tooltip-source {
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 10px;
+  padding: 0.7rem;
+  position: relative;
+  box-sizing: border-box;
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  background: #fff1;
+  border: 1px solid var(--border-color);
+  max-height: 130px;
+  color: var(--app-text-pri);
+}
+
+.math-tooltip-source code {
+  font-family: var(--app-font-stack-mono);
+  font-size: 0.85rem;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   13. Legacy Pipeline A class compatibility (md-quote-block, etc.)
+   ═══════════════════════════════════════════════════════════ */
+
+.chr-md .md-quote-block {
+  background: var(--hover);
+  border-left: 4px solid var(--accent);
+  padding: 0.3em 1em;
+  margin: 0;
+  border-radius: 4px;
+  line-height: 1.6;
+}
+
+.chr-md .md-quote-block p {
+  margin: 0.5rem 0;
+}
+
+.chr-md .md-quote-block br {
+  line-height: 1.2;
+  display: block;
+  margin: 0.15em 0;
+}
+
+.chr-md .para-backslash {
+  margin: .5rem 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   14. Syntax Highlighting Tokens
+   ═══════════════════════════════════════════════════════════ */
+
+/* Core token classes produced by syntaxHighlight.ts */
+/* ═══════════════════════════════════════════════════════════
+   Syntax Highlighting — hljs Token Colors
+   Single source of truth for all code highlighting across
+   SSG output, CMS preview, and editor overlay.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── hljs Code Tokens ────────────────────────────────
+   Shared between SSG output + CMS preview (.syntax-hl)
+   and CMS editor (.cm-editor-host).  Single source of truth
+   for hljs-* → --code-* color mapping.
+
+   Inheritance chain:
+     CSS Variable (theme-aware, defined in :root / [data-theme])
+       └── .syntax-hl .hljs-*  ← published blog pages
+       └── .cm-editor-host  .hljs-*  ← CMS CodeMirror editor
+       Both contexts see the same color.  Editor markdown-
+       structure classes (cm-md-*) live in CmEditor.vue.
+
+   To add a new code color: define --code-xxx in :root sections,
+   then add a rule here — both contexts pick it up automatically.
+*/
+
+/* ── Keywords ─────────────────────────────────────── */
+.hljs-keyword    { color: var(--code-keyword); font-weight: bold; }
+
+.hljs-modifier   { color: var(--code-keyword); }
+
+/* ── Literals ─────────────────────────────────────── */
+.hljs-string     { color: var(--code-string); }
+
+.hljs-number     { color: var(--code-number); }
+
+.hljs-literal    { color: var(--code-boolean); }
+
+.hljs-char       { color: var(--code-string); }
+
+.hljs-char.escape_ { color: var(--code-operator); }
+
+/* ── Comments ─────────────────────────────────────── */
+.hljs-comment    { color: var(--code-comment); font-style: italic; }
+
+/* ── Identifiers & types ──────────────────────────── */
+.hljs-variable   { color: var(--code-variable); }
+
+.hljs-type       { color: var(--code-type); }
+
+.hljs-title            { color: var(--code-type); }
+
+.hljs-title.function_  { color: var(--code-type); }
+
+.hljs-title.class_     { color: var(--code-type); font-weight: bold; }
+
+.hljs-symbol     { color: var(--code-number); }
+
+.hljs-built_in   { color: var(--code-cmdlet); font-weight: bold; }
+
+.hljs-params     { color: var(--code-parameter); }
+
+.hljs-name             { color: var(--code-tag); }
+
+/* ── Objects & markup ─────────────────────────────── */
+.hljs-attr       { color: var(--code-attribute); }
+
+.hljs-property   { color: var(--code-property); }
+
+.hljs-tag        { color: var(--code-tag); }
+
+.hljs-selector-tag { color: var(--code-selector); }
+
+.hljs-section    { color: var(--code-section); font-weight: bold; }
+
+/* ── Operators & punctuation ──────────────────────── */
+.hljs-operator   { color: var(--code-operator); }
+
+.hljs-punctuation { color: var(--featured); }
+
+.hljs-bullet     { color: var(--featured); }
+
+/* ── Regex & special ──────────────────────────────── */
+.hljs-regexp     { color: var(--code-string); }
+
+.hljs-invalid    { color: var(--status-warning); text-decoration: underline wavy; }
+
+/* ── Meta / directives ────────────────────────────── */
+.hljs-meta       { color: var(--code-directive); }
+
+.hljs-preprocessor { color: var(--code-preprocessor); font-weight: bold; }
+
+.hljs-doctag     { color: var(--code-comment); font-weight: bold; }
+
+/* ── Misc ─────────────────────────────────────────── */
+.hljs-subst      { color: var(--code-variable); }
+
+.hljs-formula    { color: var(--code-keyword); }
+
+.hljs-addition   { color: var(--code-string); background: rgba(0,255,0,0.1); }
+
+.hljs-deletion   { color: var(--code-string); background: rgba(255,0,0,0.1); }
+
+.hljs-template-variable { color: var(--code-variable); }
+
+.hljs-template-tag     { color: var(--code-keyword); }
+
+/* ── KaTeX (math rendering) ────────────────────────── */
+.katexcommand    { color: var(--code-katexcommand); }
+
+.katexnumber     { color: var(--code-number); }
+
+.katexbracket    { color: var(--comp-text-sec); }
+
+/* ── highlight.js formatting tokens ────────────────
+   Used by SSG output (hljs) for emphasis/code/links
+   inside highlighted code blocks.  Some language grammars
+   emit these for doc comments, format strings, etc.
+   CmEditor emits cm-md-* for markdown-prose equivalents,
+   so these hljs-* rules apply to fenced-block content only. */
+
+.hljs-strong     { font-weight: bold; color: var(--app-text-pri); }
+
+.hljs-emphasis   { font-style: italic; color: var(--comp-text-pri); }
+
+.hljs-code       { background: var(--hover); color: var(--code-inline); padding: 0.2rem 0.4rem; border-radius: 3px; }
+
+.hljs-link       { color: var(--code-link); }
+
+.hljs-quote      { color: var(--code-quote); font-style: italic; border-left: 4px solid var(--code-quote); padding-left: 0.5rem; margin-left: 0.5rem; }
+
+/* ── GFM Task list checkbox ──────────────────────────
+   Rendered by markdown-it inline rule (chronicleMarkdown.ts /
+   markdownPreview.ts) as <input class="md-task-checkbox">.
+   Editor uses .cm-task-marker (CmEditor.vue taskMarkerPlugin). */
+.md-task-checkbox {
+  accent-color: var(--accent);
+  width: 1.25em;
+  height: 1.25em;
+  margin: 0 0.25em 0 0;
+  vertical-align: middle;
+  transform: translateY(-1px);
+  pointer-events: none;  /* readonly — matches GFM disabled behavior */
+}
+
+/* ── Footnotes (markdown-it-footnote) ───────────────── */
+.chr-md a.footnote-ref {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4em;
+  height: 1.4em;
+  padding: 2px;
+  border-radius: 1em;
+  background: var(--active);
+  color: var(--comp-text-pri);
+  font-size: 0.7em;
+  line-height: 1;
+  margin: 0 0.1em;
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+.chr-md .footnotes-sep {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 5rem 0 1rem;
+}
+
+.chr-md .footnotes {
+  font-size: 0.9em;
+  color: var(--app-text-sec);
+}
+
+.chr-md .footnotes-list {
+  padding-left: 1.5rem;
+}
+
+.chr-md .footnote-item {
+  margin: 0.4rem 0;
+}
+
+.chr-md .footnote-backref {
+  text-decoration: none;
+  margin-left: 0.25em;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   15. Font Variants
+   ═══════════════════════════════════════════════════════════ */
+
+.font-sans .chr-md {
+  font-family: var(--app-font-stack-inter), sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+}
+
+.font-serif .chr-md {
+  font-family: var(--app-font-stack-serif), serif;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+
+.font-mono .chr-md {
+  font-family: var(--app-font-stack-mono);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   16. Image Preview → moved to §20 (unified with file overlay)
+   ═══════════════════════════════════════════════════════════ */
+
+/* Ensure images inside flexible containers don't force overflow */
+.chr-md img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   17. Print
+   ═══════════════════════════════════════════════════════════ */
+
+@media print {
+  .chr-md .editor-footer {
+    display: none;
+  }
+
+  .chr-md .code-chunk-container .toolbar {
+    display: none;
+  }
+
+  .chr-md .code-chunk-container .editor-wrapper,
+  .chr-md .code-chunk-container .code-textarea,
+  .chr-md .code-chunk-container .syntax-hl {
+    max-height: none !important;
+  }
+
+  .chr-md .code-chunk-container {
+    max-height: none !important;
+  }
+
+  .chr-md .code-textarea {
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+
+  .chr-md .syntax-hl {
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+
+  .chr-md thead {
+    background: #ccc;
+  }
+
+  .chr-md .code-chunk-container.mermaid .editor-wrapper {
+    display: none;
+  }
+}
+
+   /*
+   19. File Preview Framework
+   Mirrors template-astro/src/components/FilePreviewModal.vue.
+   Glassmorphism design: transparent container, blur overlay,
+   circular action buttons, dark semi-transparent accents.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Overlay ─────────────────────────────────────── */
+
+.file-preview-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 20000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  animation: fadeIn 0.15s forwards;
+}
+
+@keyframes fadeIn { to { opacity: 1; } }
+
+/* ── Container ───────────────────────────────────── */
+
+.file-preview-container {
+  background: transparent;
+  width: 80%;
+  max-width: 900px;
+  height: 80%;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: none;
+}
+
+/* ── Header ──────────────────────────────────────── */
+
+.file-preview-header {
+  height: 100px;
+  background: transparent;
+  border-bottom: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.file-preview-title {
+  color: #fff;
+  font-weight: 600;
+  font-variation-settings: 'wght' 600;
+  font-size: 1.7rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0 20px 0 0;
+}
+
+.preview-header-actions {
+  padding: 0 5px;
+  display: flex;
+  gap: 20px;
+}
+
+/* ── Action buttons ──────────────────────────────── */
+
+.preview-action-btn {
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: #eee;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
+}
+
+.preview-action-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.preview-action-btn:active {
+  transform: scale(0.95);
+}
+
+/* ── Encoding select ─────────────────────────────── */
+
+.encoding-select {
+  border-radius: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: #eee;
+  padding: 6px 40px 6px 18px;
+  font-size: 14px;
+  width: 180px;
+  height: 48px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23eee' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.encoding-select:hover {
+  background-color: #000;
+}
+
+/* ── Body ────────────────────────────────────────── */
+
+.file-preview-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-radius: 12px;
+  background: transparent;
+}
+
+/* ── Media (audio / video) ───────────────────────── */
+
+.fp-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background: transparent;
+}
+
+/* ── Document / PDF ──────────────────────────────── */
+
+.fp-doc {
+  width: 100%;
+  height: 100%;
+  background: var(--comp-bg-blur);
+}
+
+.fp-doc object {
+  border-radius: 12px;
+}
+
+/* ── Text wrapper ────────────────────────────────── */
+
+.text-wrapper {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: visible;
+  background: var(--comp-bg-blur);
+  border: none;
+  border-radius: 12px;
+  box-sizing: border-box;
+  min-width: 100%;
+  margin: 0;
+  white-space: pre;
+}
+
+.text-scroll-container {
+  flex: 1;
+  width: 100%;
+  overflow: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Text content (monospace) ────────────────────── */
+
+.fp-text {
+  margin: 12px;
+  width: fit-content;
+  min-width: calc(100% - 24px);
+  font-family: var(--app-font-stack-mono);
+  font-size: 14px;
+  color: var(--app-text-pri);
+  line-height: 1.6;
+  background: transparent;
+}
+
+/* ── Truncation marker ───────────────────────────── */
+
+.fp-truncated {
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  padding: 0 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+/* ── Generic / unsupported file ──────────────────── */
+
+.fp-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--comp-bg-blur);
+}
+
+.fp-unsupported {
+  color: var(--app-text-sec);
+  font-size: 0.95rem;
+}
+
+/* ── Loading state ───────────────────────────────── */
+
+.loading-state {
+  color: #888;
+  align-self: center;
+  margin-top: 20px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   20. Image Preview Overlay
+   Shared between manager and template-astro.
+   ═══════════════════════════════════════════════════════════ */
+
+.image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 20000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  animation: fadeIn 0.15s forwards;
+}
+
+.image-preview-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-preview-content {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  cursor: grab;
+  transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  will-change: transform;
+}
+.image-preview-content.is-dragging { transition: none !important; }
+.image-preview-content:active { cursor: grabbing; }
+
+@media (max-width: 768px) {
+  .file-preview-header { height: 70px; }
+  .file-preview-overlay { backdrop-filter: none; }
+
+  .image-preview-overlay {
+    align-items: flex-start;
+    padding-top: 80px;
+  }
+}
+
+
+
+/* ── iframe 视频嵌入（网易云/哔哩哔哩/YouTube）──
+   在 .chr-md（SSG 文章页 / CMS 预览 div 外壳）内响应式显示：
+   保留平台给的 width/height 属性（净化放行），宽度自适应容器。
+   src 域名白名单由净化钩子（isSafeIframeSrc）保证，非白名单 iframe 不会到达这里。 */
+.chr-md iframe {
+  display: block;
+  max-width: 100%;
+  margin: 1em auto;
+  border: 0;
+  border-radius: 8px;
+}

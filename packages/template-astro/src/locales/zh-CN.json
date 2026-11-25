@@ -1,0 +1,156 @@
+{
+  "app": {
+    "title": "Chronicle"
+  },
+  "nav": {
+    "home": "首页",
+    "search": "搜索",
+    "friends": "朋友",
+    "collection": "合集",
+    "posts": "文章",
+    "settings": "设置",
+    "about": "关于",
+    "menu": "菜单"
+  },
+  "inblog": {
+    "toc-title": "目录",
+    "backToBlogs": "返回博客列表",
+    "anonymousAuthor": "匿名",
+    "moreAuthors": " 及{count}人",
+    "wordSing": "{count} 字",
+    "wordPlural": "{count} 字",
+    "min": "分钟",
+    "created": "创建于",
+    "updated": "更新于",
+    "words": "字数",
+    "readingTime": "阅读时间",
+    "aiGeneratedTip": "文章含 AI 生成内容"
+  },
+  "misc": {
+    "backToTop": "回到顶部"
+  },
+  "blog": {
+    "featured": "精选",
+    "collapse": "收起",
+    "expand": "展开",
+    "viewAll": "查看所有精选",
+    "filter": "筛选",
+    "allTags": "全部标签",
+    "sort": "排序",
+    "sortNewest": "从新到旧",
+    "sortOldest": "从旧到新",
+    "sortTitle": "按标题",
+    "timeline": "时间线",
+    "expandAll": "展开全部",
+    "exitTimeline": "退出时间线",
+    "clearFilter": "清除",
+    "back": "全部文章",
+    "resultsCount": "{count} 篇",
+    "noMatchingPosts": "没有匹配的文章。",
+    "allPosts": "全部文章",
+    "loadingPosts": "正在加载文章...",
+    "noPostsNote": "暂无文章，敬请期待！",
+    "daySuffix": "日"
+  },
+  "home": {
+    "title": "Chronicle for Aurora",
+    "tagline": "Love what you wanna love, be what you wanna be.<br/>爱我所爱，自成一派。",
+    "viewBlogs": "查看博客",
+    "viewThemePost": "阅读主题文章",
+    "noSummary": "暂无摘要。点击进入查看完整内容。",
+    "cardSubtitle": "爱我所爱，自成一派。",
+    "cardAuthorLine": "马上就好@ ~ 稍等一下~",
+    "defaultAuthorName": "内容主理人",
+    "metaDescription": "Chronicle 首页",
+    "homepageArchitecture": "首页信息架构",
+    "readingLatest": "阅读最新内容",
+    "browseAllPosts": "浏览全部文章",
+    "scrollDown": "向下滚动",
+    "filterByTags": "按标签筛选",
+    "articleCardTitle": "焦点内容",
+    "latestArticles": "最新文章",
+    "viewAll": "查看全部",
+    "viewAllTags": "查看全部标签",
+    "noPostsAvailable": "暂无文章。",
+    "authorInfo": "作者信息",
+    "topicNavigation": "主题导航",
+    "quickSearch": "快速搜索",
+    "collectionList": "合集列表",
+    "tagCloud": "标签云",
+    "popularRecommended": "热门 / 推荐阅读卡片",
+    "recommendedReading": "推荐阅读",
+    "noRecommendedPosts": "暂无推荐内容。",
+    "recentUpdates": "最近更新",
+    "updateTime": "更新时间",
+    "unknownTime": "未知",
+    "updateContent": "更新内容",
+    "staleNotice": "近期未更新内容。",
+    "updatedApp": "更新 App 版本",
+    "newPost": "新增文章",
+    "updatedPost": "更新文章",
+    "deletedPosts": "删除 {count} 篇文章",
+    "noRecentChanges": "最近无内容更新",
+    "siteLinksAria": "站点链接",
+    "rssSubscribe": "RSS 订阅",
+    "email": "邮箱",
+    "footerCopyright": "© {year} {siteTitle} · All rights reserved · <备案号>",
+    "collectionMeta": "{posts} 篇文章 · {groups} 个分组",
+    "browseBlogs": "浏览博客",
+    "browseBlogsDescription": "按时间追踪最新内容。",
+    "topicSearch": "主题搜索",
+    "topicSearchDescription": "按标签继续订阅主题。",
+    "collectionsEntry": "合集入口",
+    "collectionsEntryDescription": "把文章装进主题流。",
+    "friendsEntry": "朋友页",
+    "friendsEntryDescription": "连接到站点网络。",
+    "aboutEntry": "关于本站",
+    "aboutEntryDescription": "了解作者与站点。",
+    "recentPublished": "最近发布"
+  },
+  "file": {
+    "type": {
+      "audio": "音频",
+      "video": "视频",
+      "document": "文档",
+      "code": "文本/代码",
+      "file": "文件"
+    }
+  },
+  "settings": {
+    "locale": {
+      "follow": "跟随浏览器",
+      "zh": "中文（简体）",
+      "en": "English"
+    }
+  },
+  "preview": {
+    "pdfUnsupported": "你的浏览器无法内嵌显示 PDF。请下载来预览。",
+    "downloadPdf": "下载 PDF",
+    "textLoading": "正在加载文本...",
+    "textPreviewEmpty": "文件为空",
+    "textDecodeError": "无法预览文本（解码或加载失败）",
+    "truncated": "已省略后续",
+    "previewNotSupported": "该类型文件不支持预览。",
+    "mermaid": {
+      "downloadSvg": "下载 SVG",
+      "split": "拆分视图",
+      "code": "仅代码",
+      "preview": "仅图像",
+      "notPrerendered": "未找到预渲染的 Mermaid SVG。"
+    }
+  },
+  "tag": {
+    "featured": "精选"
+  },
+  "formula": {
+    "copied": "公式已复制"
+  },
+  "date": {
+    "justNow": "刚刚",
+    "minutesAgo": "{count}分钟前",
+    "hoursAgo": "{count}小时前",
+    "yesterday": "昨天",
+    "twoDaysAgo": "前天",
+    "daysAgo": "{count}天前"
+  }
+}

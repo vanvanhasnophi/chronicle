@@ -1,0 +1,102 @@
+---
+import '../themes/aurora/styles/components/blog-post-card.css';
+import { buildLocalizedPath } from '../utils/routeLocale';
+import { getPostTypeBadge } from '../plugins';
+
+type Post = {
+  id: string;
+  title: string;
+  date: string;
+  tags?: string[];
+  type?: string;
+};
+
+const { post, locale, routeLang, featured = false } = Astro.props as {
+  post: Post;
+  locale: string;
+  routeLang: 'zh' | 'en';
+  featured?: boolean;
+};
+
+// 类型徽章（注册式）：非 article 类型由插件 postTypes.badge 声明——插件禁用/
+// 删除 → 无徽章 → 不显示。core 零硬编码类型徽章。
+const typeBadge = post.type && post.type !== 'article' ? getPostTypeBadge(post.type) : undefined;
+
+const normalizeTag = (tag: unknown) =>
+  String(tag || '')
+    .trim()
+    .replace(/^#+/, '')
+    .toLowerCase();
+
+const isFeaturedTag = (tag: unknown) => {
+  const normalized = normalizeTag(tag);
+  return normalized === 'featured' || normalized === '精选';
+};
+
+const sortTagsList = (tags: unknown) => {
+  if (!Array.isArray(tags)) return [];
+  return [...tags].sort((a, b) => {
+    if (isFeaturedTag(String(a)) && !isFeaturedTag(String(b))) return -1;
+    if (!isFeaturedTag(String(a)) && isFeaturedTag(String(b))) return 1;
+    return String(a).localeCompare(String(b));
+  });
+};
+
+const escapeHtml = (value: unknown) =>
+  String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const date = new Date(post.date);
+const dateText = featured ? date.toLocaleDateString(locale) : String(date.getDate());
+const tags = sortTagsList(post.tags);
+---
+
+<a href={buildLocalizedPath(routeLang, `/post/${encodeURIComponent(post.id)}`)} style={`text-decoration:none; color:inherit;`}>
+  <article class:list={['post-card', 'mtl-surface', 'interactive', 'interactive--hl', 'interactive--motion', featured ? 'featured-card' : 'compact-card']}>
+    {featured ? (
+      <div class="featured-card-layout">
+        <div class="featured-card-date">{dateText}</div>
+        <h3 class="card-post-title">{typeBadge && <span class="type-badge" title={typeBadge.label} set:html={typeBadge.icon || typeBadge.label} />}{post.title}</h3>
+        {tags.length ? (
+          <div class="post-tags">
+            {tags.map((tag) => (
+              <span class:list={['tag', isFeaturedTag(String(tag)) ? 'featured' : '']}>
+                # {isFeaturedTag(String(tag)) ? locale === 'zh-CN' ? '精选' : 'Featured' : tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    ) : (
+      <>
+        <div class="compact-card-layout">
+          <div class="compact-card-time">
+            <span class="post-card-time">{dateText}</span>
+            <time class="post-card-full-date" datetime={post.date}>{date.toLocaleDateString(locale)}</time>
+          </div>
+          <div class="compact-card-body">
+            <div class="compact-card-title-row">
+              {tags.some((tag) => isFeaturedTag(String(tag))) ? <span class="post-featured-star" aria-hidden="true">★</span> : null}
+              <h4 class="card-post-title">{typeBadge && <span class="type-badge" title={typeBadge.label} set:html={typeBadge.icon || typeBadge.label} />}{post.title}</h4>
+            </div>
+            {tags.length ? (
+              <div class="post-tags">
+                {tags.map((tag) => (
+                  <span class:list={['tag', isFeaturedTag(String(tag)) ? 'featured' : '']}>
+                    # {isFeaturedTag(String(tag)) ? locale === 'zh-CN' ? '精选' : 'Featured' : tag}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </>
+    )}
+  </article>
+</a>
+
+
