@@ -58,8 +58,8 @@ Principle: adopt the ecosystem's **interfaces**, not its default directory.
 | `astro:env` | adopt for build-time config |
 | `astro build` as an entry point | adopt; the generator becomes a prebuild step |
 | `@astrojs/rss` | evaluate in beta.5, replace only on feature parity |
-| `@astrojs/sitemap` | keep the custom endpoint (plugin routes, base path, locales) |
-| `@astrojs/mdx` | not in 4.0; the custom renderer is a core capability |
+| `@astrojs/sitemap` | keep the custom endpoint (plugin routes, base path, locales); no effect on content migration |
+| `@astrojs/mdx` | not in 4.0. Articles are parsed by markdown-it and slides by Marp; MDX means porting the plugin layer to remark/rehype, a 5.0 candidate |
 | `astro:assets` | theme-owned images only; content media stays URL-addressed for the CMS |
 | Built-in `prefetch` / View Transitions | keep the custom prefetcher; View Transitions optional |
 
