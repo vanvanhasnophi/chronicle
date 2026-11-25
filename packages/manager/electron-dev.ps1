@@ -20,7 +20,10 @@ $wslVite = wsl bash -c "curl -s -o /dev/null -w '%{http_code}' http://localhost:
 
 if ($wslVite -ne "200") {
   Write-Host "  Vite not running. Starting in WSL..." -ForegroundColor Yellow
-  wsl bash -c "cd /opt/Chronicle/packages/manager && ELECTRON=true npx vite --host 0.0.0.0 --port $VitePort &>/tmp/vite.log &"
+  # Resolve this script's directory to a WSL path instead of hardcoding an install location.
+  $wslManagerDir = (wsl wslpath -a "$PSScriptRoot" 2>$null | Out-String).Trim()
+  if (-not $wslManagerDir) { $wslManagerDir = "." }
+  wsl bash -c "cd '$wslManagerDir' && ELECTRON=true npx vite --host 0.0.0.0 --port $VitePort &>/tmp/vite.log &"
 
   # Wait for Vite to be ready
   $retries = 0

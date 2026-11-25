@@ -49,3 +49,7 @@ dist-*/
 # Staging directory used by the generator while copying a build; a failed
 # rename (file lock, antivirus) leaves it behind instead of producing dist/.
 dist.stage-*/
+
+# CMS dev-server scratch dirs (uploads / branding written at runtime)
+packages/manager/public/server/data/*/*
+!packages/manager/public/server/data/*/.gitkeep
