@@ -6,6 +6,15 @@ Everything planned originally for 4.0 and 4.1 ships as **one 4.0 release**, buil
 
 ## 4.0 — Next Tale
 
+### beta.0 — repository hygiene
+
+- [ ] Delete the three `/opt/...` pointer files under `packages/manager/public/server/data/` (they were symlinks in 3.x and became plain files on import)
+- [ ] Remove `packages/template-astro/public/server/data/settings.json` (ships an author name, bio, a stray background image path and `example.com`)
+- [ ] Add `.nvmrc` (Node 24) and `dev` / `build` / `preview` aliases at the repo root
+- [ ] Drop the four nested `packages/*/package-lock.json` (npm workspaces wants one lockfile)
+- [ ] Unify Astro on one version and remove the duplicate `astro` dependency from the root
+- [ ] Add the Inter font license (OFL) and a third-party notices file
+
 ### beta.1 — content model foundation + ecosystem alignment
 
 - [ ] `contentModel: 1` marker + build-time check in `site.yml`
